@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>隔代房間 試玩版</title>
 <style>
   :root { --amber: #F2B84B; --teal: #5CC8D0; --ink: #1b1712; --panel: rgba(18,15,12,.78); }
@@ -73,6 +73,38 @@
   .sw button.on { border-color: #1b1712; box-shadow: 0 0 0 2px #f6f1e7 inset; }
   .sw.txt button { width: auto; border-radius: 999px; padding: 0 12px; font-size: 13px; background: transparent; color: #1b1712; border: 2px solid #cfc6b4; }
   .sw.txt button.on { background: #1b1712; color: #fff; border-color: #1b1712; box-shadow: none; }
+  /* ---- 手機觸控模式 ---- */
+  #touchUI { inset: 0; display: none; }
+  body.touch.playing #touchUI { display: block; }
+  body.touch #keys { display: none; }
+  body.touch #goal, body.touch #team { display: none !important; }
+  body.touch.goalOpen #goal { display: block !important; top: 64px; right: 12px; width: min(320px, 60vw); max-height: 60vh; overflow: auto; z-index: 3; }
+  body.touch.goalOpen #team { display: block !important; top: auto; bottom: 12px; right: 12px; width: 220px; }
+  body.touch #held { left: 12px; bottom: auto; top: 64px; min-width: 0; padding: 6px 10px; font-size: 12px; }
+  body.touch #held b { font-size: 14px; }
+  body.touch #era { left: 12px; top: 10px; }
+  body.touch #eraBadge { font-size: 20px; padding: 4px 10px; }
+  body.touch #levelName { font-size: 13px; padding: 6px 10px; }
+  body.touch #cracks { top: 10px; font-size: 12px; padding: 6px 12px; }
+  body.touch #toast { bottom: auto; top: 54px; font-size: 14px; max-width: 70vw; }
+  body.touch #prompt { top: 62%; font-size: 14px; }
+  body.touch #prompt kbd { display: none; }
+  body.touch #prompt { padding: 6px 14px; }
+  body.touch #hintBtn { left: auto; right: 12px; bottom: auto; top: 10px; }
+  #touchUI button { position: absolute; pointer-events: auto; border: none; touch-action: none; -webkit-user-select: none; user-select: none; }
+  #tAct { right: 22px; bottom: 22px; width: 96px; height: 96px; border-radius: 50%; background: rgba(242,184,75,.55); color: #1b1712; font-size: 18px; font-weight: 900; }
+  #tAct.ready { background: var(--amber); box-shadow: 0 0 0 4px rgba(255,255,255,.5); }
+  #tEra { right: 132px; bottom: 30px; min-height: 48px; background: var(--panel); color: #fff; font-size: 14px; padding: 0 14px; display: none; }
+  body.solo #tEra { display: block; }
+  #tGoal { right: 12px; top: 62px; min-height: 40px; background: var(--panel); color: #fff; font-size: 13px; padding: 0 12px; }
+  body.touch.goalOpen #tGoal { background: var(--amber); color: #1b1712; }
+  #joyBase { position: absolute; width: 130px; height: 130px; border-radius: 50%; background: rgba(255,255,255,.12); border: 2px solid rgba(255,255,255,.35); display: none; }
+  #joyKnob { position: absolute; left: 37px; top: 37px; width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,.75); }
+  #joyHint, #lookHint { position: absolute; bottom: 10px; font-size: 12px; color: #FFF6E4; opacity: .7; }
+  #joyHint { left: 16px; } #lookHint { left: 50%; }
+  body.touch canvas { touch-action: none; }
+  #rotate { position: fixed; inset: 0; background: #111; color: #fff; font-size: 22px; font-weight: 700; display: none; align-items: center; justify-content: center; z-index: 50; }
+  @media (orientation: portrait) { body.touch.playing #rotate { display: flex; } }
 </style>
 </head>
 <body>
@@ -88,6 +120,14 @@
 <div class="hud" id="toast"></div>
 <div class="hud" id="keys"></div>
 <button class="hud" id="hintBtn">💡 提示（H）</button>
+<div class="hud" id="touchUI">
+  <div id="joyBase"><div id="joyKnob"></div></div>
+  <span id="joyHint">左半邊按住拖曳：走路</span><span id="lookHint">右半邊滑動：轉頭</span>
+  <button id="tAct">互動</button>
+  <button id="tEra">⇄ 換年代</button>
+  <button id="tGoal">📜 線索</button>
+</div>
+<div id="rotate">📱 請把手機轉成橫的</div>
 
 <!-- 主選單 -->
 <div class="modal show" id="menu"><div class="card">
@@ -98,6 +138,7 @@
     <button class="ghost" id="btnJoin">加入朋友的房間</button>
     <button class="ghost" id="btnSolo">單機試玩</button>
     <button class="ghost" id="btnLook">捏角色</button>
+    <button class="ghost" id="btnTouch">操作：鍵盤滑鼠</button>
   </div>
   <p style="font-size:13px;opacity:.75;margin-top:12px">多人連線不需要伺服器：房主產生「邀請碼」貼給朋友，朋友貼回「回覆碼」就連上了。語音請用 Discord。</p>
 </div></div>
@@ -1247,6 +1288,9 @@ function updateHud() {
   hb.style.display = playing() ? 'block' : 'none';
   hb.textContent = `💡 提示（H）剩 ${S.hintsLeft} 次`;
   hb.disabled = S.hintsLeft <= 0 || S.done;
+  document.body.classList.toggle('playing', !!playing());
+  document.body.classList.toggle('solo', S.mode === 'solo');
+  if (hb.textContent && document.body.classList.contains('touch')) hb.textContent = `💡 提示 ${S.hintsLeft}`;
   const team = $('team');
   if (S.mode === 'net') {
     team.style.display = 'block';
@@ -1618,6 +1662,83 @@ const cvs = renderer.domElement;
 let dragging = false;
 cvs.addEventListener('mousedown', () => { if (anyModal() || !playing()) return; dragging = true; cvs.requestPointerLock?.(); });
 addEventListener('mouseup', () => { dragging = false; });
+// =====================================================================
+// 手機觸控模式 (自動偵測；選單可以手動切換)
+//  左半邊：虛擬搖桿走路　右半邊：滑動轉頭　右下大按鈕：互動
+// =====================================================================
+const TOUCH_KEY = 'kdroom.touch';
+function detectTouch() {
+  const q = new URLSearchParams(location.search).get('touch');
+  if (q === '1') return true;
+  if (q === '0') return false;
+  const pref = localStorage.getItem(TOUCH_KEY);
+  if (pref === 'on') return true;
+  if (pref === 'off') return false;
+  return matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && Math.min(screen.width, screen.height) < 900);
+}
+function setTouchMode(on) {
+  document.body.classList.toggle('touch', on);
+  $('btnTouch').textContent = on ? '操作：手機觸控' : '操作：鍵盤滑鼠';
+  updateHud();
+}
+setTouchMode(detectTouch());
+$('btnTouch').onclick = () => {
+  const on = !document.body.classList.contains('touch');
+  localStorage.setItem(TOUCH_KEY, on ? 'on' : 'off');
+  setTouchMode(on);
+  toast(on ? '已切換成手機觸控操作。' : '已切換成鍵盤滑鼠操作。');
+};
+
+const joy = { id: null, ox: 0, oy: 0, f: 0, s: 0 };
+const look = { id: null, x: 0, y: 0 };
+const JOY_R = 55;
+function showJoy(x, y, kx, ky) {
+  const b = $('joyBase');
+  b.style.display = 'block'; b.style.left = x - 65 + 'px'; b.style.top = y - 65 + 'px';
+  $('joyKnob').style.transform = `translate(${kx}px, ${ky}px)`;
+}
+cvs.addEventListener('touchstart', (e) => {
+  if (!playing() || anyModal()) return;
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (t.clientX < innerWidth * 0.45 && joy.id === null) {
+      joy.id = t.identifier; joy.ox = t.clientX; joy.oy = t.clientY; joy.f = joy.s = 0; showJoy(t.clientX, t.clientY, 0, 0);
+    } else if (look.id === null) {
+      look.id = t.identifier; look.x = t.clientX; look.y = t.clientY;
+    }
+  }
+}, { passive: false });
+cvs.addEventListener('touchmove', (e) => {
+  if (!playing()) return;
+  e.preventDefault();
+  for (const t of e.changedTouches) {
+    if (t.identifier === joy.id) {
+      let dx = t.clientX - joy.ox, dy = t.clientY - joy.oy;
+      const d = Math.hypot(dx, dy);
+      if (d > JOY_R) { dx = (dx / d) * JOY_R; dy = (dy / d) * JOY_R; }
+      joy.s = dx / JOY_R; joy.f = -dy / JOY_R;
+      showJoy(joy.ox, joy.oy, dx, dy);
+    } else if (t.identifier === look.id) {
+      pos.yaw -= (t.clientX - look.x) * 0.006;
+      pos.pitch = Math.max(-1.3, Math.min(1.3, pos.pitch - (t.clientY - look.y) * 0.006));
+      look.x = t.clientX; look.y = t.clientY;
+    }
+  }
+}, { passive: false });
+function touchEnd(e) {
+  for (const t of e.changedTouches) {
+    if (t.identifier === joy.id) { joy.id = null; joy.f = joy.s = 0; $('joyBase').style.display = 'none'; }
+    if (t.identifier === look.id) look.id = null;
+  }
+}
+cvs.addEventListener('touchend', touchEnd);
+cvs.addEventListener('touchcancel', touchEnd);
+// 按鈕：用 pointerdown 反應比較快，也不會觸發畫面滑動
+const tap = (id, fn) => $(id).addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); fn(); });
+tap('tAct', () => { if (playing() && !anyModal()) interact(); });
+tap('tEra', () => { if (playing() && !anyModal()) switchEra(); });
+tap('tGoal', () => document.body.classList.toggle('goalOpen'));
+
 addEventListener('mousemove', (e) => {
   if (!playing() || anyModal()) return;
   if (document.pointerLockElement !== cvs && !dragging) return;
@@ -1662,7 +1783,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (playing()) {
     if (!anyModal()) {
-      const sp = 2.4 * dt, f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+      const sp = 2.4 * dt, cl = (v) => Math.max(-1, Math.min(1, v)), f = cl((keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0) + joy.f), s = cl((keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + joy.s);
       pos.x += (-Math.sin(pos.yaw) * f + Math.cos(pos.yaw) * s) * sp;
       pos.z += (-Math.cos(pos.yaw) * f - Math.sin(pos.yaw) * s) * sp;
       collide(pos);
@@ -1672,6 +1793,7 @@ function loop(now) {
     focus = anyModal() ? null : findFocus();
     const pr = $('prompt');
     if (focus) { $('promptText').textContent = focus.label(); pr.style.display = 'flex'; } else pr.style.display = 'none';
+    $('tAct').classList.toggle('ready', !!focus);
     updateAvatars(dt);
   } else $('prompt').style.display = 'none';
   renderer.render(scene, camera);
