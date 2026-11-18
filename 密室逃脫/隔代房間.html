@@ -232,9 +232,14 @@ addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; cam
 
 let scene = new THREE.Scene();
 const matCache = {};
-const mat = (c, glow) => matCache[c + (glow ? 'g' : '')] ||= glow
+let STYLE = 'flat';
+const toonGrad = (() => { const t = new THREE.DataTexture(new Uint8Array([70, 150, 255]), 3, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+const mat = (c, glow) => matCache[c + (glow ? 'g' : '') + STYLE] ||= glow
   ? new THREE.MeshBasicMaterial({ color: c })
+  : STYLE === 'toon' ? new THREE.MeshToonMaterial({ color: c, gradientMap: toonGrad })
+  : STYLE === 'neon' ? new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.4, metalness: 0.2, emissive: c, emissiveIntensity: 0.18 })
   : new THREE.MeshStandardMaterial({ color: c, flatShading: true, roughness: 0.92, metalness: 0 });
+const styleFor = (era) => { const st = S.level && S.level.style; return (st && typeof st === 'object' ? st[era] : st) || 'flat'; };
 function box(w, h, d, c, x, y, z, glow) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(c, glow)); m.position.set(x, y + h / 2, z); return m; }
 function cyl(rt, rb, h, c, x, y, z, seg = 7) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat(c)); m.position.set(x, y + h / 2, z); return m; }
 function cone(r, h, c, x, y, z, seg = 7) { const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, seg), mat(c)); m.position.set(x, y + h / 2, z); return m; }
@@ -248,12 +253,13 @@ function group(...parts) { const g = new THREE.Group(); parts.forEach((p) => g.a
 const S = { level: null, levelNo: 1, era: '1990', who: '1990', held: {}, f: {}, cracks: 0, done: false, start: 0, mode: 'menu', diff: 'normal', hintsLeft: 3 };
 // 難度：提示次數、可容許的時間裂痕、拉桿同時的秒數、線索欄是否精簡
 const DIFF = {
-  easy: { name: '簡單', hints: 5, cracks: 5, win: 5000, desc: '提示 5 次・裂痕上限 5' },
-  normal: { name: '普通', hints: 3, cracks: 3, win: 3000, desc: '提示 3 次・裂痕上限 3' },
-  hard: { name: '困難', hints: 1, cracks: 2, win: 2000, brief: true, desc: '提示 1 次・裂痕上限 2・線索欄只剩一句' },
+  easy: { name: '簡單', hints: 3, cracks: 3, win: 3000, desc: '線索比較直接、步驟比較少（提示 3 次・失誤上限 3）' },
+  normal: { name: '普通', hints: 3, cracks: 3, win: 3000, desc: '兩邊要交換資訊才解得開（提示 3 次・失誤上限 3）' },
+  hard: { name: '困難', hints: 3, cracks: 3, win: 3000, brief: true, desc: '兩邊都只有一半的線索，要一起推理；線索欄只剩一句（提示 3 次・失誤上限 3）' },
 };
 const D = () => DIFF[S.diff] || DIFF.normal;
 const leverWin = () => D().win + (S.mode === 'solo' ? 5000 : 0);
+const timeLimit = () => (S.level && S.level.timer) || 0;
 const ME = { id: '1990', name: '我', era: '1990', color: '#E07A4F' };
 const pos = { x: 0, z: 2.3, yaw: 0, pitch: 0 };
 const soloPos = { 1990: { x: 0, z: 2.3, yaw: 0, pitch: 0 }, 2030: { x: 0, z: 2.3, yaw: 0, pitch: 0 } };
@@ -269,14 +275,30 @@ const PAL = {
   2030: { floor: '#AEBBC0', wall: '#E4ECEE', wall2: '#D3DFE2', ceil: '#C9D6DA', sky: '#10212B', light: 0xe0f6ff, hemi: [0xeefcff, 0x6a7c84] },
   ctrl: { floor: '#2A3640', wall: '#3E5260', wall2: '#34474F', ceil: '#24313A', sky: '#06141C', light: 0xbfe8ff, hemi: [0xcfefff, 0x1b2a33], win: '#0B3B5A' },
   eng: { floor: '#4A4038', wall: '#6E6258', wall2: '#5E544A', ceil: '#3E362F', sky: '#140E0A', light: 0xffc890, hemi: [0xffe0c0, 0x3a2a1e], win: '#0B3B5A' },
+  // 第一章各關自己的配色
+  shop90: { floor: '#7A5A3A', wall: '#A8D5BA', wall2: '#93C4A6', ceil: '#E8D9B0', sky: '#2A1E16', light: 0xfff0c8, hemi: [0xfff6dc, 0x5a4a2e] },
+  shop30: { floor: '#8E9590', wall: '#C9D3CC', wall2: '#B8C4BC', ceil: '#AEB8B2', sky: '#141C18', light: 0xd8f0e4, hemi: [0xe8fff4, 0x4a5a52], fog: ['#9AA8A0', 6, 18] },
+  light90: { floor: '#5E7E96', wall: '#F1F5F8', wall2: '#D9E6EE', ceil: '#B8483A', sky: '#2A1A14', light: 0xffd6a0, hemi: [0xffe6c8, 0x3a4a5a] },
+  light30: { floor: '#4A5A66', wall: '#9AA8B0', wall2: '#8A98A0', ceil: '#6E5048', sky: '#1A1410', light: 0xff9a60, hemi: [0xffc8a0, 0x2a3038], fog: ['#5A4A48', 5, 16] },
+  photo90: { floor: '#3A2A22', wall: '#C9B08A', wall2: '#B89C78', ceil: '#8E7454', sky: '#1A120C', light: 0xffd8a0, hemi: [0xfff0d0, 0x4a3020] },
+  photo30: { floor: '#4A4440', wall: '#8E8478', wall2: '#7E7468', ceil: '#5E564E', sky: '#100C0A', light: 0xd0c0a8, hemi: [0xe0d0c0, 0x2a2420], fog: ['#6E6458', 4, 14] },
+  harbor90: { floor: '#6E6A64', wall: '#7C8C96', wall2: '#6E7E88', ceil: '#5E6A72', sky: '#1A2228', light: 0xe8f0ff, hemi: [0xe0ecff, 0x3a4248] },
+  harbor30: { floor: '#5A5650', wall: '#5E6A70', wall2: '#525E64', ceil: '#3E464C', sky: '#0E1418', light: 0xb0c4d8, hemi: [0xc0d0e0, 0x20282e], fog: ['#3E4A52', 4, 13] },
+  // 第二章
+  flood: { floor: '#1E3A48', wall: '#2B5566', wall2: '#244A59', ceil: '#16303B', sky: '#04121A', light: 0x9fe3ff, hemi: [0xbfeaff, 0x0b2430], fog: ['#0B2A38', 3, 12], win: '#0B3B5A' },
+  sonar: { floor: '#06100C', wall: '#0C1E16', wall2: '#0A1A13', ceil: '#06120C', sky: '#020806', light: 0x7dffb0, hemi: [0x9fffc8, 0x02100a], win: '#0B3B5A' },
+  sub: { floor: '#2E2A26', wall: '#4A4038', wall2: '#3E362F', ceil: '#2A241F', sky: '#080604', light: 0xffb070, hemi: [0xffd0a0, 0x1a1410], fog: ['#1A140F', 3, 11] },
+  ctrlRed: { floor: '#2A2224', wall: '#4A3A3E', wall2: '#3E3034', ceil: '#241C1E', sky: '#100808', light: 0xff9090, hemi: [0xffc0c0, 0x200a0a], win: '#3A0E08' },
+  reactor: { floor: '#2A1410', wall: '#4A1E16', wall2: '#3E1812', ceil: '#2A100C', sky: '#140604', light: 0xff7a4a, hemi: [0xffb090, 0x2a0a06], fog: ['#3A0E08', 4, 14] },
 };
 // 每一關的兩邊叫什麼 (預設是 1990 / 2030 兩個年代)
 const DEFAULT_SIDES = { 1990: ['1990', '過去', 'var(--amber)'], 2030: ['2030', '未來', 'var(--teal)'] };
 const sideOf = (e) => (S.level && S.level.sides && S.level.sides[e]) || DEFAULT_SIDES[e];
 const crackName = () => (S.level && S.level.crackName) || '時間裂痕';
 function buildRoom(era, opts = {}) {
-  const p = PAL[opts.pal || era], { w, d, h } = ROOM;
+  const p = PAL[opts.pal || (S.level && S.level.pal && S.level.pal[era]) || era], { w, d, h } = ROOM;
   scene.background = new THREE.Color(p.sky);
+  if (p.fog) scene.fog = new THREE.Fog(p.fog[0], p.fog[1], p.fog[2]);
   scene.add(new THREE.HemisphereLight(p.hemi[0], p.hemi[1], 1.1));
   const sun = new THREE.DirectionalLight(p.light, 1.1); sun.position.set(3, 4, 1); scene.add(sun);
   scene.add(box(w, 0.1, d, p.floor, 0, -0.1, 0));
@@ -290,6 +312,10 @@ function buildRoom(era, opts = {}) {
 }
 function add(obj, o = {}) {
   scene.add(obj);
+  if (STYLE === 'neon') {
+    const meshes = []; obj.traverse((m) => { if (m.isMesh) meshes.push(m); });
+    meshes.forEach((m) => m.add(new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry), new THREE.LineBasicMaterial({ color: '#7DFFB0' }))));
+  }
   if (o.id) { obj.traverse((m) => { m.userData.id = o.id; }); hits.push({ obj, ...o }); }
   if (o.solid) solids.push(o.solid);
   return obj;
@@ -1067,11 +1093,18 @@ const LEVEL7 = {
   crackName: '警報',
   noGhost: true,
   init() {
-    const order = shuffle([0, 1, 2, 3]);                       // 保險絲插槽由左到右要的顏色
-    const open = shuffle([0, 1, 2, 3, 4]).slice(0, 2 + Math.floor(Math.random() * 2)).sort(); // 要打開的閥門
-    const digits = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 5); // 每個閥門底座刻的數字
+    // 簡單：3 格保險絲、直接說要開哪些閥門。困難：保險絲用代號（對照表在機房）、閥門用「底座數字奇偶」決定（數字只有機房看得到）
+    const order = shuffle([0, 1, 2, 3]).slice(0, S.diff === 'easy' ? 3 : 4); // 保險絲插槽由左到右要的顏色
+    const parity = Math.floor(Math.random() * 2);
+    let digits, open;
+    do {
+      digits = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 5); // 每個閥門底座刻的數字
+      open = S.diff === 'hard' ? [0, 1, 2, 3, 4].filter((i) => digits[i] % 2 === parity)
+        : shuffle([0, 1, 2, 3, 4]).slice(0, S.diff === 'easy' ? 2 : 2 + Math.floor(Math.random() * 2)).sort();
+    } while (open.length < 1 || open.length > 4);
+    const codes = shuffle(['🐟', '🐙', '🦀', '🐢']); // 困難模式：保險絲顏色的代號
     const seq = shuffle([0, 1, 2, 3, 4]).slice(0, 4);          // 逃生艙密碼的符號順序
-    S.f = { order, open, digits, seq, fuse: ['shelf', 'shelf', 'shelf', 'shelf'], slots: [null, null, null, null],
+    S.f = { order, open, digits, seq, parity, codes, hard: S.diff === 'hard', fuse: ['shelf', 'shelf', 'shelf', 'shelf'], slots: order.map(() => null),
       valves: [false, false, false, false, false], power: false, pressure: false, podReady: false };
   },
   reset() {},
@@ -1082,8 +1115,8 @@ const LEVEL7 = {
   },
   hint() {
     const f = S.f;
-    if (!f.power) return '控制室的「電力」螢幕寫著保險絲的顏色順序。機房從工具架拿保險絲，照順序（由左到右）插進後牆的保險絲盒，插滿後由控制室拉電源桿。';
-    if (!f.pressure) return '控制室的「閥門」螢幕寫著要打開哪幾個符號的閥門。機房照著轉開，其他全部關上，再由控制室按「加壓」。';
+    if (!f.power) return (f.hard ? '困難模式：螢幕上的是代號，代號表在機房的工具架上。' : '') + '控制室的「電力」螢幕寫著保險絲的顏色順序。機房從工具架拿保險絲，照順序（由左到右）插進後牆的保險絲盒，插滿後由控制室拉電源桿。';
+    if (!f.pressure) return (f.hard ? '困難模式：要開的是「底座數字是奇數或偶數」的閥門，機房要把每個閥門的數字念給控制室確認。' : '') + '控制室的「閥門」螢幕寫著要打開哪幾個符號的閥門。機房照著轉開，其他全部關上，再由控制室按「加壓」。';
     if (!f.podReady) return '控制室的「逃生艙」螢幕給了一串符號；機房每個閥門底座都刻著數字。把符號換成數字就是艙門密碼，由機房在逃生艙門輸入。';
     return '機房的人已經在艙裡了，控制室按「釋放逃生艙」！';
   },
@@ -1093,8 +1126,8 @@ const LEVEL7 = {
     if (ctrl) {
       // 三個螢幕
       const screens = [
-        ['scrPower', '電力', true, () => `緊急電力程序\n保險絲盒插槽（由左到右）要插：\n${f.order.map((c) => FUSES[c][0]).join('　')}\n\n插好後拉下電源桿。` + (f.power ? '\n\n✅ 電力已恢復' : '')],
-        ['scrValve', '閥門', f.power, () => `壓力平衡程序\n只打開這些閥門：${f.open.map((i) => SYMS[i]).join('　')}\n其他閥門全部關閉，然後按「加壓」。` + (f.pressure ? '\n\n✅ 壓力正常' : '')],
+        ['scrPower', '電力', true, () => `緊急電力程序\n保險絲盒有 ${f.order.length} 格，由左到右要插：\n${f.order.map((c) => (f.hard ? f.codes[c] : FUSES[c][0])).join('　')}` + (f.hard ? '\n（這些是代號；代號對應哪個顏色，貼在機房的工具架上）' : '') + `\n\n插好後拉下電源桿。` + (f.power ? '\n\n✅ 電力已恢復' : '')],
+        ['scrValve', '閥門', f.power, () => (f.hard ? `壓力平衡程序\n只打開「底座數字是${f.parity ? '奇' : '偶'}數」的閥門，其他全部關閉，然後按「加壓」。\n（底座數字只有機房看得到）` : `壓力平衡程序\n只打開這些閥門：${f.open.map((i) => SYMS[i]).join('　')}\n其他閥門全部關閉，然後按「加壓」。`) + (f.pressure ? '\n\n✅ 壓力正常' : '')],
         ['scrPod', '逃生艙', f.pressure, () => `逃生艙已就位\n艙門密碼＝下列閥門底座的數字（依序）：\n${f.seq.map((i) => SYMS[i]).join('　')}\n\n機房輸入密碼進艙後，按「釋放逃生艙」。` + (f.podReady ? '\n\n✅ 艙門已關閉，等待釋放' : '')],
       ];
       screens.forEach(([id, title, on, body], i) => {
@@ -1134,6 +1167,7 @@ const LEVEL7 = {
       act: () => {
         const h = held();
         if (h?.startsWith('fuse')) { f.fuse[+h[4]] = 'shelf'; setHeld(null); return msg('保險絲放回架上。'); }
+        if (f.hard) return note('工具架上的代號表', FUSES.map(([n], i) => `${f.codes[i]} ＝ ${n}色`).join('\n'));
         msg('工具架上放著保險絲。');
       },
     });
@@ -1147,7 +1181,7 @@ const LEVEL7 = {
     // 保險絲盒
     add(box(2.8, 1.0, 0.1, '#3E474F', -0.3, 0.9, -2.93));
     f.slots.forEach((s, i) => {
-      const x = -1.2 + i * 0.6;
+      const x = -0.3 - (f.slots.length - 1) * 0.3 + i * 0.6;
       add(group(box(0.4, 0.5, 0.06, '#1B1F23', x, 1.15, -2.86), ...(s !== null ? [box(0.12, 0.34, 0.08, FUSES[s][1], x, 1.23, -2.82)] : [])), {
         id: 'slot' + i,
         label: () => (s !== null ? (held() ? `第 ${i + 1} 格：${FUSES[s][0]}色` : `拔出第 ${i + 1} 格的${FUSES[s][0]}色保險絲`) : held()?.startsWith('fuse') ? `插進第 ${i + 1} 格` : `第 ${i + 1} 格（空的）`),
@@ -1160,7 +1194,7 @@ const LEVEL7 = {
           }
           if (!h?.startsWith('fuse')) return msg(`保險絲盒的第 ${i + 1} 格，從左邊數過來。`);
           const c = +h[4]; f.slots[i] = c; f.fuse[c] = 'slot'; setHeld(null);
-          msg(`${FUSES[c][0]}色保險絲插進第 ${i + 1} 格。` + (f.slots.every((x) => x !== null) ? '\n四格都插滿了，請控制室拉電源桿。' : ''));
+          msg(`${FUSES[c][0]}色保險絲插進第 ${i + 1} 格。` + (f.slots.every((x) => x !== null) ? `\n${f.slots.length} 格都插滿了，請控制室拉電源桿。` : ''));
         },
       });
     });
@@ -1191,7 +1225,309 @@ const LEVEL7 = {
     add(group(cyl(0.25, 0.25, 2.6, '#8E5A3A', 1.2, 0, 2.6, 8), cyl(0.25, 0.25, 2.6, '#8E5A3A', 2.0, 0, 2.6, 8)), { solid: { x: 1.6, z: 2.6, hw: 0.7, hd: 0.3 } });
   },
 };
-const LEVELS = { 1: LEVEL1, 2: LEVEL2, 3: LEVEL3, 4: LEVEL4, 5: LEVEL5, 6: LEVEL6, 7: LEVEL7 };
+// =====================================================================
+// 第二章共用：控制室 × 機房
+// =====================================================================
+const CH2 = {
+  sides: { 1990: ['控制室', '指揮', '#5CC8D0'], 2030: ['機房', '動手', '#E0874F'] },
+  pal: { 1990: 'ctrl', 2030: 'eng' },
+  crackName: '警報',
+  noGhost: true,
+};
+const rnd = (n) => Math.floor(Math.random() * n);
+// 控制室的大螢幕 (亮/暗)
+function ctrlScreen(id, x, title, on, body, w = 1.6) {
+  add(group(box(w, 1.0, 0.06, '#1B2A33', x, 1.1, -2.94), box(w - 0.2, 0.8, 0.02, on ? '#2E8C9A' : '#13262E', x, 1.2, -2.9, on)), {
+    id, label: () => `${title}螢幕`, act: () => (on ? note(`控制室螢幕：${title}`, body()) : msg(`${title}螢幕一片黑，要先完成前一個步驟。`)),
+  });
+}
+function ctrlDesk() { add(box(6.4, 0.85, 0.7, '#3A4A55', 0, 0, -2.0), { solid: { x: 0, z: -2.0, hw: 3.2, hd: 0.35 } }); }
+function deskButton(id, x, color, label, act) {
+  add(group(box(0.4, 0.1, 0.3, '#22303A', x, 0.85, -1.85), cyl(0.12, 0.12, 0.08, color, x, 0.95, -1.85, 12)), { id, label, act });
+}
+// 兩邊在時限內一起按 (跟燈塔的拉桿同一套)
+function bothPress(f, era, okText) {
+  const now = Date.now(), win = leverWin(), other = era === '1990' ? '2030' : '1990';
+  f.pull[era] = now;
+  if (f.pull[other] && now - f.pull[other] <= win) return finish(true, okText);
+  msg(`按下去了……要兩邊在 ${win / 1000} 秒內一起按才有用（用語音倒數）。`, 4000);
+}
+
+// =====================================================================
+// 第八關：淹水的艙段 (抽水機開關會互相影響，而且有氧氣倒數)
+// =====================================================================
+const COMPS = ['前艙', '左艙', '右艙', '後艙'];
+const PUMPS = ['A', 'B', 'C', 'D', 'E'];
+const CODE_COLORS = [['紅', '#D9372B'], ['藍', '#3F6EC9'], ['綠', '#4E9A4E'], ['黃', '#E8C547']];
+const LEVEL8 = {
+  ...CH2,
+  name: '第八關・淹水的艙段',
+  timer: 480,
+  timeoutText: '氧氣用完了……研究站完全淹沒。',
+  init() {
+    let matrix, flood;
+    do {
+      const size = () => (S.diff === 'easy' ? 1 : S.diff === 'hard' ? 2 + rnd(2) : 1 + rnd(2));
+      matrix = PUMPS.map(() => shuffle([0, 1, 2, 3]).slice(0, size()));
+    } while (![0, 1, 2, 3].every((c) => matrix.some((m) => m.includes(c))));
+    do {
+      flood = [false, false, false, false];
+      shuffle([0, 1, 2, 3, 4]).slice(0, 2 + rnd(2)).forEach((p) => matrix[p].forEach((c) => (flood[c] = !flood[c])));
+    } while (flood.every((x) => !x));
+    const chart = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]).slice(0, 4);
+    const seq = [0, 1, 2, 3].map(() => rnd(4));
+    S.f = { matrix, flood, pumps: [false, false, false, false, false], chart, seq, wiringInEngine: S.diff === 'hard' };
+  },
+  reset() {},
+  goal(era) {
+    return era === '1990'
+      ? '你在控制室，研究站正在淹水，氧氣有限！<br>・螢幕看得到每個艙段有沒有淹水<br>・也看得到每台抽水機會影響哪些艙段<br>・一台抽水機可能會讓某個艙段「又淹回去」'
+      : '你在機房，氧氣有限！<br>・五台抽水機 A～E 的開關在右邊牆上<br>・你看不到哪個艙段在淹水，照控制室說的做<br>・水密門的密碼要用牆上的色碼表換算';
+  },
+  hint() {
+    const f = S.f;
+    if (f.flood.some((x) => x)) return (f.wiringInEngine ? '困難模式：接線表貼在機房的抽水機標籤上，控制室只看得到哪裡在淹水，兩邊要對一下。' : '') + '每台抽水機會「切換」幾個艙段：乾的變淹水、淹水的變乾。控制室看接線表，找出要按哪幾台才能讓四個艙段全部變乾（同一台按兩次等於沒按）。';
+    return '艙段都乾了！控制室的「水密門」螢幕會亮出四個顏色；機房用牆上的色碼表把顏色換成數字，就是門的密碼。';
+  },
+  build(era) {
+    const f = S.f, ctrl = era === '1990', dry = f.flood.every((x) => !x);
+    buildRoom(era, { window: 0 });
+    if (ctrl) {
+      // 艙段狀態燈 (即時)
+      COMPS.forEach((c, i) => add(box(0.5, 0.35, 0.04, f.flood[i] ? '#2F6FD0' : '#4E9A4E', -2.2 + i * 0.5 - 0.25 + 0.25 * 0, 2.05, -2.92, true)));
+      ctrlScreen('scrFlood', -1.5, '艙段', true, () =>
+        `艙段狀態：\n${COMPS.map((c, i) => `${c}：${f.flood[i] ? '🌊 淹水' : '✅ 乾'}`).join('\n')}\n\n` + (f.wiringInEngine ? '抽水機接線表不在這裡——貼在機房每台抽水機的標籤上，要請機房念給你聽。' : `抽水機接線表（按一下會「切換」這些艙段）：\n${PUMPS.map((p, i) => `${p} → ${f.matrix[i].map((c) => COMPS[c]).join('、')}`).join('\n')}`) + `\n\n機房的抽水機目前：${PUMPS.map((p, i) => `${p}${f.pumps[i] ? '開' : '關'}`).join(' ')}`, 2.4);
+      ctrlScreen('scrDoor', 1.6, '水密門', dry, () => `水密門密碼燈號（依序）：\n${f.seq.map((c) => CODE_COLORS[c][0]).join('　')}\n\n機房牆上有色碼表，可以把顏色換成數字。`, 2.0);
+      ctrlDesk();
+      add(box(0.04, 1.2, 1.5, '#0B3B5A', 3.94, 0.9, 0, true));
+      return;
+    }
+    // 機房：抽水機開關
+    PUMPS.forEach((p, i) => {
+      const z = -2.0 + i * 0.95, on = f.pumps[i];
+      const lever = box(0.06, 0.4, 0.06, on ? '#4E9A4E' : '#B5604A', 3.8, on ? 1.15 : 0.85, z);
+      add(group(box(0.12, 0.7, 0.3, '#3E474F', 3.92, 0.7, z), lever, box(0.04, 0.16, 0.2, '#F4F1E6', 3.88, 1.5, z)), {
+        id: 'p' + i, solid: { x: 3.85, z, hw: 0.15, hd: 0.2 },
+        label: () => `抽水機 ${p}（${on ? '開' : '關'}）` + (f.wiringInEngine ? `・標籤：${f.matrix[i].map((c) => COMPS[c]).join('、')}` : ''),
+        act: () => {
+          f.pumps[i] = !on;
+          f.matrix[i].forEach((c) => (f.flood[c] = !f.flood[c]));
+          msg(`把抽水機 ${p} ${on ? '關掉' : '打開'}。轟隆隆……水管裡的水換了方向。` + (f.wiringInEngine ? `\n標籤寫著：會切換 ${f.matrix[i].map((c) => COMPS[c]).join('、')}` : ''));
+        },
+      });
+    });
+    // 色碼表
+    add(group(box(0.9, 0.7, 0.03, '#F4F1E6', -1.0, 1.1, -2.93), ...CODE_COLORS.map(([n, c], i) => box(0.14, 0.1, 0.02, c, -1.3, 1.6 - i * 0.15, -2.91))), {
+      id: 'chart', label: () => '看色碼表',
+      act: () => note('牆上的色碼表', CODE_COLORS.map(([n], i) => `${n} ＝ ${f.chart[i]}`).join('\n')),
+    });
+    // 水密門
+    add(group(box(1.2, 2.1, 0.08, dry ? '#5B6670' : '#3E474F', -2.4, 0, 2.94), cyl(0.25, 0.25, 0.06, '#C9CFD3', -2.4, 1.1, 2.88, 12)), {
+      id: 'door', label: () => (dry ? '水密門（輸入密碼）' : '水密門（鎖住）'),
+      act: () => {
+        if (!dry) return msg('門外的艙段還在淹水，水密門自動鎖死了。');
+        const code = f.seq.map((c) => f.chart[c]).join('');
+        pad('水密門', '輸入四位數密碼（控制室看得到顏色，色碼表在牆上）', code, () => finish(true, '水密門打開了！你們沿著乾掉的艙段一路跑到上層。'));
+      },
+    });
+    add(group(cyl(0.3, 0.3, 2.6, '#8E5A3A', 0.8, 0, 2.5, 8), cyl(0.3, 0.3, 2.6, '#8E5A3A', 1.6, 0, 2.5, 8)), { solid: { x: 1.2, z: 2.5, hw: 0.7, hd: 0.35 } });
+  },
+};
+
+// =====================================================================
+// 第九關：聲納導航 (控制室看地圖、機房只會「左轉/右轉/前進」)
+// =====================================================================
+const GRID = 6;
+const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // 北 東 南 西 (y 往下是南)
+const DIR_NAMES = ['北', '東', '南', '西'];
+function bfsPath(rocks, from, to) {
+  const key = (x, y) => x + ',' + y, prev = { [key(...from)]: null }, q = [from];
+  while (q.length) {
+    const [x, y] = q.shift();
+    if (x === to[0] && y === to[1]) {
+      const path = []; let k = key(x, y);
+      while (k) { path.unshift(k.split(',').map(Number)); k = prev[k]; }
+      return path;
+    }
+    for (const [dx, dy] of DIRS) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID || rocks.includes(key(nx, ny)) || key(nx, ny) in prev) continue;
+      prev[key(nx, ny)] = key(x, y); q.push([nx, ny]);
+    }
+  }
+  return null;
+}
+const LEVEL9 = {
+  ...CH2,
+  name: '第九關・聲納導航',
+  timer: 540,
+  timeoutText: '氧氣用完了……潛艇停在海底再也動不了。',
+  init() {
+    const start = [0, GRID - 1], exit = [GRID - 1, 0];
+    let rocks;
+    do {
+      rocks = [];
+      for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
+        if ((x === start[0] && y === start[1]) || (x === exit[0] && y === exit[1])) continue;
+        if (Math.random() < 0.3) rocks.push(x + ',' + y);
+      }
+    } while (!bfsPath(rocks, start, exit) || bfsPath(rocks, start, exit).length < 10);
+    S.f = { rocks, sub: [...start], heading: 0, exit, absolute: S.diff === 'easy' };
+  },
+  reset() {},
+  goal(era) {
+    return era === '1990'
+      ? `你在控制室，研究站垮了，你們搭救生潛艇逃！<br>・螢幕是聲納地圖：黃色是潛艇、綠色是出口<br>・${S.f && S.f.absolute ? '機房可以直接選東西南北' : '潛艇只能「左轉、右轉、前進一格」'}<br>・撞到岩石會響警報`
+      : `你在潛艇的機房，外面一片漆黑。<br>・${S.f && S.f.absolute ? '四個按鈕：往東西南北開一格' : '只有三個按鈕：左轉、右轉、前進'}<br>・羅盤看得到潛艇朝哪個方向<br>・照控制室說的開，別撞上岩石`;
+  },
+  hint() {
+    const f = S.f, path = bfsPath(f.rocks, f.sub, f.exit);
+    if (!path || path.length < 2) return '快到了！前進到綠色的出口格。';
+    const [nx, ny] = path[1], d = DIRS.findIndex(([dx, dy]) => dx === nx - f.sub[0] && dy === ny - f.sub[1]);
+    const turn = (d - f.heading + 4) % 4;
+    if (f.absolute) return `下一步：往${DIR_NAMES[d]}開一格。`;
+    const how = turn === 0 ? '直接前進' : turn === 1 ? '右轉一次再前進' : turn === 3 ? '左轉一次再前進' : '轉兩次（掉頭）再前進';
+    return `潛艇現在朝${DIR_NAMES[f.heading]}。最近的路下一步要往${DIR_NAMES[d]}走：${how}。\n記得「左轉／右轉」是照潛艇自己的方向，不是地圖的上下左右。`;
+  },
+  build(era) {
+    const f = S.f, ctrl = era === '1990';
+    buildRoom(era, { window: 0 });
+    if (ctrl) {
+      // 聲納地圖 (牆上的格子)
+      const cs = 0.3, ox = -((GRID - 1) * cs) / 2, oy = 0.55;
+      add(box(GRID * cs + 0.3, GRID * cs + 0.3, 0.06, '#1B2A33', 0, oy - 0.15, -2.94));
+      const hide = S.diff === 'hard';
+      for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
+        const rock = f.rocks.includes(x + ',' + y), isSub = x === f.sub[0] && y === f.sub[1], isExit = x === f.exit[0] && y === f.exit[1];
+        const far = hide && Math.max(Math.abs(x - f.sub[0]), Math.abs(y - f.sub[1])) > 2;
+        const c = isSub ? '#F2B84B' : isExit ? '#4E9A4E' : far ? '#0A1F28' : rock ? '#3A2A22' : '#0E4A5A';
+        add(box(cs - 0.03, cs - 0.03, 0.02, c, ox + x * cs, oy + (GRID - 1 - y) * cs, -2.9, !rock || isSub || isExit));
+      }
+      const [hx, hy] = DIRS[f.heading];
+      add(box(0.1, 0.1, 0.03, '#FFFFFF', ox + f.sub[0] * cs + hx * 0.1, oy + (GRID - 1 - f.sub[1]) * cs - hy * 0.1, -2.88, true));
+      add(box(0.6, 0.4, 0.04, '#F4F1E6', 2.2, 1.6, -2.93), {
+        id: 'scrMap', label: () => '看聲納文字版',
+        act: () => {
+          const rows = [];
+          for (let y = 0; y < GRID; y++) {
+            let r = '';
+            for (let x = 0; x < GRID; x++) {
+              const far = S.diff === 'hard' && Math.max(Math.abs(x - f.sub[0]), Math.abs(y - f.sub[1])) > 2;
+              r += x === f.sub[0] && y === f.sub[1] ? '🟨' : x === f.exit[0] && y === f.exit[1] ? '🟩' : far ? '⬛' : f.rocks.includes(x + ',' + y) ? '🪨' : '🟦';
+            }
+            rows.push(r);
+          }
+          note('聲納（上方是北）', `${rows.join('\n')}\n\n潛艇朝：${DIR_NAMES[f.heading]}` + (S.diff === 'hard' ? '\n（困難模式：聲納只看得到附近兩格）' : ''));
+        },
+      });
+      ctrlDesk();
+      add(box(0.04, 1.2, 1.5, '#0B3B5A', 3.94, 0.9, 0, true));
+      return;
+    }
+    // 機房：三個駕駛按鈕＋羅盤
+    add(box(3.0, 0.9, 0.7, '#4A3E38', 0, 0, -2.2), { solid: { x: 0, z: -2.2, hw: 1.5, hd: 0.35 } });
+    const pbtn = (id, x, color, text, fn) => add(group(box(0.5, 0.1, 0.4, '#2A2420', x, 0.9, -2.05), cyl(0.15, 0.15, 0.1, color, x, 1.0, -2.05, 12)), { id, label: () => text, act: fn });
+    const forward = () => {
+      const [dx, dy] = DIRS[f.heading], nx = f.sub[0] + dx, ny = f.sub[1] + dy;
+      if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID || f.rocks.includes(nx + ',' + ny)) return crack('碰！潛艇撞上岩石，整個船身震了一下。\n（請控制室重新確認方向）');
+      f.sub = [nx, ny];
+      if (nx === f.exit[0] && ny === f.exit[1]) return finish(true, '潛艇穿過最後一道岩縫，前方出現救援船的燈光——你們逃出來了！');
+      msg('潛艇往前開了一格。');
+    };
+    if (f.absolute) {
+      // 簡單模式：直接選方位
+      DIR_NAMES.forEach((n, d) => pbtn('go' + d, -1.2 + d * 0.8, '#E8C547', `往${n}開一格`, () => { f.heading = d; forward(); }));
+    } else {
+      pbtn('left', -0.9, '#3F6EC9', '左轉', () => { f.heading = (f.heading + 3) % 4; msg(`潛艇向左轉。羅盤：朝${DIR_NAMES[f.heading]}。`); });
+      pbtn('right', 0.9, '#3F6EC9', '右轉', () => { f.heading = (f.heading + 1) % 4; msg(`潛艇向右轉。羅盤：朝${DIR_NAMES[f.heading]}。`); });
+      pbtn('fwd', 0, '#E8C547', '前進一格', forward);
+    }
+    add(group(cyl(0.35, 0.35, 0.05, '#C9CFD3', 0, 1.6, -2.9, 16), box(0.05, 0.28, 0.03, '#D9372B', 0, 1.6, -2.86)), {
+      id: 'compass', label: () => `羅盤（朝${DIR_NAMES[f.heading]}）`, act: () => msg(`羅盤指著：潛艇朝${DIR_NAMES[f.heading]}。`),
+    });
+    add(box(0.04, 1.0, 1.2, '#061018', 3.94, 1.0, 0, true), { id: 'port', label: () => '舷窗', act: () => msg('舷窗外一片漆黑，什麼都看不到。只能靠控制室的聲納。') });
+  },
+};
+
+// =====================================================================
+// 第十關：核心過熱 (章節最終關：冷卻棒換算＋兩邊同時排熱，有倒數)
+// =====================================================================
+const RODS = [['紅', '#D9372B', '讀數 ＋ 3 的個位數', (r) => (r + 3) % 10], ['藍', '#3F6EC9', '讀數 × 2 的個位數', (r) => (r * 2) % 10], ['綠', '#4E9A4E', '10 － 讀數（10 寫 0）', (r) => (10 - r) % 10]];
+const LEVEL10 = {
+  ...CH2,
+  name: '第十關・核心過熱',
+  timer: 480,
+  timeoutText: '溫度突破臨界……研究站的核心熔毀了。',
+  init() {
+    const colors = shuffle([0, 1, 2]);              // 第 i 根冷卻棒的顏色
+    const reads = [0, 1, 2].map(() => 1 + rnd(9));  // 第 i 根的讀數
+    const lamps = [0, 1, 2].map(() => Math.random() < 0.5);
+    if (!lamps.some((x) => x)) lamps[rnd(3)] = true;
+    S.f = { colors, reads, dials: [0, 0, 0], injected: false, pull: {}, showColors: S.diff === 'easy', lamps: S.diff === 'hard' ? lamps : [false, false, false] };
+  },
+  reset() {},
+  goal(era) {
+    return era === '1990'
+      ? '你在控制室，核心溫度一直在升高！<br>・螢幕看得到三根冷卻棒的讀數和設定規則<br>・但你看不到冷卻棒是什麼顏色<br>・最後要兩邊「同時」排熱'
+      : '你在核心機房，快熱死了！<br>・三根冷卻棒，每根有一個 0～9 的轉盤<br>・你看得到冷卻棒的顏色，但看不到讀數<br>・最後要兩邊「同時」排熱';
+  },
+  hint() {
+    const f = S.f;
+    if (!f.injected) return (S.diff === 'hard' ? '困難模式：機房還要告訴控制室哪幾根的警示燈亮著，亮的那根答案要再 +1。' : '') + '控制室念出每根冷卻棒的讀數（從左到右），機房說出每根的顏色。用控制室螢幕的規則算出數字，機房把轉盤轉到那個數字，控制室再按「注入冷卻劑」。';
+    return '冷卻劑注入了！最後兩邊各自按下「排熱」按鈕，要在幾秒內一起按（用語音倒數 3、2、1）。';
+  },
+  build(era) {
+    const f = S.f, ctrl = era === '1990';
+    buildRoom(era, { window: 0 });
+    if (ctrl) {
+      ctrlScreen('scrCore', -1.5, '核心', true, () =>
+        `冷卻棒讀數（從左到右）：\n${[0, 1, 2].map((i) => `第 ${i + 1} 根：${f.reads[i]}` + (f.showColors ? `（${RODS[f.colors[i]][0]}色）` : '')).join('　')}\n\n轉盤設定規則：\n${RODS.map(([n, , rule]) => `${n}色冷卻棒 ＝ ${rule}`).join('\n')}` + (S.diff === 'hard' ? '\n⚠ 如果那根冷卻棒的警示燈亮著，結果再 ＋1（取個位數）。警示燈只有機房看得到。' : '') + (f.showColors ? '' : '\n\n（你看不到冷卻棒的顏色，要問機房）') + (f.injected ? '\n\n✅ 冷卻劑已注入，準備排熱' : ''), 2.4);
+      ctrlScreen('scrVent', 1.6, '排熱', f.injected, () => `緊急排熱程序：\n控制室和機房要在 ${leverWin() / 1000} 秒內一起按下「排熱」。`, 2.0);
+      ctrlDesk();
+      deskButton('inject', -1.2, f.injected ? '#4E9A4E' : '#3F6EC9', () => (f.injected ? '冷卻劑（已注入）' : '按下注入冷卻劑'), () => {
+        if (f.injected) return msg('冷卻劑已經注入了。');
+        const ok = [0, 1, 2].every((i) => f.dials[i] === (RODS[f.colors[i]][3](f.reads[i]) + (f.lamps[i] ? 1 : 0)) % 10);
+        if (ok) { f.injected = true; return msg('嘶——冷卻劑灌進核心，溫度開始下降！排熱螢幕亮了。'); }
+        crack('冷卻劑流量不對，核心溫度反而飆升！\n（請重新確認每根的顏色和轉盤數字）');
+      });
+      deskButton('vent', 1.2, '#D9372B', () => '按下排熱', () => {
+        if (!f.injected) return msg('還沒注入冷卻劑，現在排熱會爆炸。');
+        bothPress(f, era, '兩邊同時排熱——一大團蒸氣噴出，溫度降回安全範圍！你們撐過了深海研究站的最後危機。');
+      });
+      return;
+    }
+    // 機房：三根冷卻棒與轉盤
+    f.colors.forEach((c, i) => {
+      const x = -1.6 + i * 1.6, [name, color] = RODS[c];
+      add(group(cyl(0.22, 0.22, 2.2, color, x, 0, -2.4, 10), box(0.5, 0.5, 0.08, '#2A2420', x, 1.0, -2.1), box(0.3, 0.3, 0.02, '#F4F1E6', x, 1.1, -2.05), box(0.12, 0.12, 0.04, f.lamps[i] ? '#FF3B2F' : '#3A2020', x, 1.6, -2.08, f.lamps[i])), {
+        id: 'rod' + i, solid: { x, z: -2.4, hw: 0.3, hd: 0.3 },
+        label: () => `第 ${i + 1} 根（${name}色${f.lamps[i] ? '・警示燈亮' : ''}）轉盤：${f.dials[i]}（按一下 +1）`,
+        act: () => {
+          if (f.injected) return msg('冷卻劑已經注入，轉盤鎖住了。');
+          f.dials[i] = (f.dials[i] + 1) % 10;
+          msg(`第 ${i + 1} 根（${name}色）冷卻棒的轉盤轉到 ${f.dials[i]}。`, 1800);
+        },
+      });
+    });
+    add(group(box(0.6, 1.0, 0.4, '#3E474F', 2.8, 0, 2.6), cyl(0.15, 0.15, 0.1, '#D9372B', 2.8, 1.0, 2.6, 12)), {
+      id: 'vent2', solid: { x: 2.8, z: 2.6, hw: 0.3, hd: 0.2 }, label: () => '按下排熱',
+      act: () => {
+        if (!f.injected) return msg('排熱按鈕旁邊寫著：「注入冷卻劑前禁止排熱」。');
+        bothPress(f, era, '兩邊同時排熱——一大團蒸氣噴出，溫度降回安全範圍！你們撐過了深海研究站的最後危機。');
+      },
+    });
+  },
+};
+
+// 每關自己的配色與畫風
+Object.assign(LEVEL3, { pal: { 1990: 'shop90', 2030: 'shop30' }, style: 'toon' });
+Object.assign(LEVEL4, { pal: { 1990: 'light90', 2030: 'light30' }, style: 'toon' });
+Object.assign(LEVEL5, { pal: { 1990: 'photo90', 2030: 'photo30' } });
+Object.assign(LEVEL6, { pal: { 1990: 'harbor90', 2030: 'harbor30' } });
+Object.assign(LEVEL8, { pal: { 1990: 'ctrl', 2030: 'flood' } });
+Object.assign(LEVEL9, { pal: { 1990: 'sonar', 2030: 'sub' }, style: { 1990: 'neon', 2030: 'flat' } });
+Object.assign(LEVEL10, { pal: { 1990: 'ctrlRed', 2030: 'reactor' }, style: 'toon' });
+const LEVELS = { 1: LEVEL1, 2: LEVEL2, 3: LEVEL3, 4: LEVEL4, 5: LEVEL5, 6: LEVEL6, 7: LEVEL7, 8: LEVEL8, 9: LEVEL9, 10: LEVEL10 };
 
 // =====================================================================
 // 連線：複製貼上連線碼 (WebRTC，不需要伺服器)
@@ -1329,8 +1665,10 @@ function withCtx(who, era, fn) {
 function buildFor(era) {
   const sv = { scene, hits, solids };
   scene = new THREE.Scene(); hits = []; solids = [];
+  STYLE = styleFor(era);
   S.level.build(era);
   const out = hits;
+  STYLE = styleFor(S.era);
   scene = sv.scene; hits = sv.hits; solids = sv.solids;
   return out;
 }
@@ -1448,6 +1786,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 
 function rebuild() {
   scene = new THREE.Scene(); hits = []; solids = [];
+  STYLE = styleFor(S.era);
   if (S.level) S.level.build(S.era);
   scene.add(avatarRoot);
   updateHud();
@@ -1627,13 +1966,16 @@ $('hintBtn').onclick = askHint;
 // 章節進度 (存在這台電腦的瀏覽器裡)
 // =====================================================================
 const LEVEL_INFO = [
-  { n: 1, ch: '第一章・隔代房間', name: '第一關・阿嬤的客廳', desc: '教學關：生長、封存、傳話' },
-  { n: 2, name: '第二關・理化教室', desc: '反向查證、封存、固定' },
-  { n: 3, name: '第三關・巷口雜貨店', desc: '侵蝕、自助付款、雙向密碼' },
-  { n: 4, name: '第四關・海邊燈塔', desc: '光線、時鐘、兩邊同時拉桿' },
-  { n: 5, name: '第五關・老照相館', desc: '雙向密碼、保存環境、翻拍底片' },
-  { n: 6, name: '第六關・港邊老倉庫', desc: '位置被打亂要做記號、埋進水泥、上油防鏽' },
-  { n: 7, ch: '第二章・深海研究站（控制室 × 機房）', name: '第七關・緊急撤離', desc: '一邊看螢幕指揮、一邊動手：保險絲、閥門、逃生艙' },
+  { n: 1, ch: '第一章・隔代房間', stars: 1, name: '第一關・阿嬤的客廳', desc: '教學關：生長、封存、傳話' },
+  { n: 2, stars: 1, name: '第二關・理化教室', desc: '反向查證、封存、固定' },
+  { n: 3, stars: 2, name: '第三關・巷口雜貨店', desc: '侵蝕、自助付款、雙向密碼' },
+  { n: 4, stars: 3, name: '第四關・海邊燈塔', desc: '光線、時鐘、兩邊同時拉桿' },
+  { n: 5, stars: 3, name: '第五關・老照相館', desc: '雙向密碼、保存環境、翻拍底片' },
+  { n: 6, stars: 4, name: '第六關・港邊老倉庫', desc: '位置被打亂要做記號、埋進水泥、上油防鏽' },
+  { n: 7, ch: '第二章・深海研究站（控制室 × 機房）', stars: 2, name: '第七關・緊急撤離', desc: '一邊看螢幕指揮、一邊動手：保險絲、閥門、逃生艙' },
+  { n: 8, stars: 3, name: '第八關・淹水的艙段', desc: '抽水機會互相影響，要推理按哪幾台；有氧氣倒數' },
+  { n: 9, stars: 4, name: '第九關・聲納導航', desc: '控制室看地圖、機房只能左轉右轉前進；有氧氣倒數' },
+  { n: 10, stars: 5, name: '第十關・核心過熱', desc: '冷卻棒換算＋兩邊同時排熱；章節最終關，有倒數' },
 ];
 let PROG = {};
 try { PROG = JSON.parse(localStorage.getItem('kdroom.progress')) || {}; } catch (e) { PROG = {}; }
@@ -1643,7 +1985,10 @@ function saveClear(n, diff, sec) {
   if (!c[diff] || sec < c[diff]) c[diff] = sec;
   localStorage.setItem('kdroom.progress', JSON.stringify(PROG));
 }
-const unlocked = (n) => PROG.all || n === 1 || !!PROG.cleared[n - 1];
+// 每一章的第一關都開放；章內要過了前一關才解鎖下一關
+const chapterStart = (n) => { let s = 1; for (const l of LEVEL_INFO) { if (l.ch) s = l.n; if (l.n === n) return s; } return 1; };
+const unlocked = (n) => PROG.all || n === chapterStart(n) || !!PROG.cleared[n - 1];
+const starText = (k) => '★'.repeat(k) + '☆'.repeat(5 - k);
 const fmtSec = (t) => `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 function diffButtons(rootId) {
   const root = $(rootId);
@@ -1656,7 +2001,7 @@ function renderLevelLists() {
   $('soloLevels').innerHTML = LEVEL_INFO.map((l) => (l.ch ? `<h3 style="margin:10px 0 0">${l.ch}</h3>` : '') + (() => {
     const c = PROG.cleared[l.n] || {}, ok = unlocked(l.n);
     const badges = Object.entries(DIFF).map(([k, d]) => `<i class="${c[k] ? 'on' : ''}">${d.name}${c[k] ? ' ' + fmtSec(c[k]) : ''}</i>`).join('');
-    return `<button data-level="${l.n}" class="${ok ? '' : 'locked'}">${ok ? '' : '🔒 '}${l.name}<span>${ok ? l.desc : '先過前一關才會解鎖'}</span><span class="badges">${badges}</span></button>`;
+    return `<button data-level="${l.n}" class="${ok ? '' : 'locked'}">${ok ? '' : '🔒 '}${l.name}<span>難度 ${starText(l.stars || 1)}・${ok ? l.desc : '先過這一章的前一關才會解鎖'}</span><span class="badges">${badges}</span></button>`;
   })()).join('') + (PROG.all ? '' : '<button class="ghost" id="unlockAll" style="min-height:40px">全部解鎖（試玩用）</button>');
   $('soloLevels').querySelectorAll('[data-level]').forEach((b) => (b.onclick = () => {
     const n = +b.dataset.level;
@@ -1665,7 +2010,7 @@ function renderLevelLists() {
   }));
   if ($('unlockAll')) $('unlockAll').onclick = () => { PROG.all = true; localStorage.setItem('kdroom.progress', JSON.stringify(PROG)); renderLevelLists(); };
   const sel = $('hLevel'), cur = sel.value;
-  sel.innerHTML = LEVEL_INFO.map((l) => `<option value="${l.n}" ${unlocked(l.n) ? '' : 'disabled'}>${unlocked(l.n) ? '' : '🔒 '}${l.name}</option>`).join('');
+  sel.innerHTML = LEVEL_INFO.map((l) => (l.ch ? (l.n > 1 ? '</optgroup>' : '') + `<optgroup label="${l.ch}">` : '') + `<option value="${l.n}" ${unlocked(l.n) ? '' : 'disabled'}>${unlocked(l.n) ? '' : '🔒 '}${l.name}（${starText(l.stars || 1)}）</option>`).join('') + '</optgroup>';
   if (cur && unlocked(+cur)) sel.value = cur;
 }
 renderLevelLists();
@@ -1922,6 +2267,13 @@ function collide(p) {
 // =====================================================================
 let last = performance.now();
 // 位置同步用固定計時器，不跟畫面更新綁在一起 (分頁在背景時畫面會停，但位置還是要送)
+setInterval(() => {
+  if (!playing() || S.done || !timeLimit()) return;
+  const left = Math.max(0, timeLimit() - (performance.now() - S.start) / 1000);
+  $('cracks').textContent = `${D().name}・${crackName()} ${S.cracks} / ${D().cracks}・⏱ ${fmtSec(Math.ceil(left))}`;
+  $('cracks').style.color = left < 60 ? '#FF8A7A' : '';
+  if (left <= 0 && (S.mode === 'solo' || Net.role === 'host')) finish(false, S.level.timeoutText || '時間到了。');
+}, 500);
 setInterval(() => {
   if (S.mode !== 'net') return;
   const m = { t: 'pos', x: +pos.x.toFixed(2), z: +pos.z.toFixed(2), yaw: +pos.yaw.toFixed(2) };

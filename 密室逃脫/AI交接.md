@@ -1,6 +1,6 @@
 # 《隔代房間》AI 交接文件
 
-> 最後更新：2026-11-18（v0.7，兩章七關＋手機觸控）。接手的 AI 請先讀完這份，再讀 `設計/關卡設計.md`。
+> 最後更新：2026-11-18（v0.8，兩章十關＋手機觸控）。接手的 AI 請先讀完這份，再讀 `設計/關卡設計.md`。
 > 跟使用者溝通一律用**繁體中文**。
 
 ## 1. 這是什麼
@@ -26,7 +26,7 @@
 - **Three.js 0.160.0**，用 importmap 從 jsdelivr 載入；低多邊形、`flatShading`。幾何用 `box() / cyl() / cone() / group()` 小工具。
 - **遊戲狀態 `S`**：`level, levelNo, era, who, held{玩家id: 物品}, f{關卡旗標}, cracks, done, mode('menu'|'solo'|'net'|'lobby'), diff, hintsLeft`。
   - 單機時玩家 id 就是年代字串（`'1990'`/`'2030'`），所以兩個年代各拿各的東西。
-- **關卡物件** `LEVEL1..LEVEL7`，`LEVELS = {1..7}`。**兩邊的 id 永遠是 `'1990'`／`'2030'`**（沿用大廳分組），但關卡可以用選填欄位改名字和規則：`sides: { 1990: ['控制室','指揮','#色'], 2030: [...] }`（HUD 名稱）、`pal: { 1990: 'ctrl', 2030: 'eng' }`（房間配色，見 `PAL`）、`crackName: '警報'`（取代「時間裂痕」）、`noGhost: true`（兩邊是不同房間時不顯示對方殘影）。`LEVEL_INFO` 用 `ch` 欄位開新章節標題。第六關的木箱順序在 `init()` 隨機產生，存在 `S.f`，多人時由房主決定再廣播。每關有：
+- **關卡物件** `LEVEL1..LEVEL10`，`LEVELS = {1..10}`。第二章共用設定在 `CH2`，共用小工具 `ctrlScreen / ctrlDesk / deskButton / bothPress`。**兩邊的 id 永遠是 `'1990'`／`'2030'`**（沿用大廳分組），但關卡可以用選填欄位改名字和規則：`sides: { 1990: ['控制室','指揮','#色'], 2030: [...] }`（HUD 名稱）、`pal: { 1990: 'ctrl', 2030: 'eng' }`（房間配色，見 `PAL`）、`crackName: '警報'`（取代「時間裂痕」）、`noGhost: true`（兩邊是不同房間時不顯示對方殘影）。`LEVEL_INFO` 用 `ch` 欄位開新章節標題、`stars`（1～5）標難度。**每章第一關都開放、章內依序解鎖**（`chapterStart()`／`unlocked()`）。第六關的木箱順序在 `init()` 隨機產生，存在 `S.f`，多人時由房主決定再廣播。每關有：
   - `name`、`init()`（重設 `S.f`）、`reset(item)`（丟進垃圾桶時「時間修正」放回原位）、`goal(era)`（右上線索 HTML）、`build(era)`（蓋場景）、`hint()`（依 `S.f` 進度回傳下一步提示）。
   - `build(era)` 裡用 `add(obj, { id, solid, label: () => 文字, act: () => {...} })` 註冊可互動物件。`solid` 是碰撞方塊 `{x,z,hw,hd}`。
   - 房間 8×6×2.8，玩家出生點約 `(0, 2.3)` 面向 -z。窗戶用 `buildRoom(era, { window: z })`。
@@ -38,7 +38,9 @@
   - 房主→隊員：`lobby`、`start{level,diff,players,state}`、`state`、`toast`、`note`、`pad`、`padResult{ok,bad}`、`finish{win,text,sec}`、`pos`。
   - 位置同步用 `setInterval` 100ms（分頁在背景時 rAF 會停）。斷線時手上物品交給同年代隊友，沒人接就 `reset`。
   - 之後要放進 Discord 活動時，只要換掉 `Net` 這一塊。
-- **難度 `DIFF`**：簡單（提示 5／裂痕 5／拉桿 5 秒）、普通（3／3／3）、困難（1／2／2 秒，線索欄只剩一句）。單機拉桿多 5 秒。
+- **難度 `DIFF`（v0.8 改）**：三種難度都是提示 3、失誤上限 3、同時按 3 秒（單機 +5 秒）。**難度＝解謎深度**：每關在 `init()` 依 `S.diff` 改變謎題（例：第七關困難用代號＋奇偶規則、第八關困難把接線表移到機房、第九關簡單改成直接選方位、第十關困難加警示燈）。困難的第一章線索欄只剩一句（`brief`）。新關卡請照這個原則設計三種深度。
+- **倒數**：關卡加 `timer: 秒數` 和 `timeoutText`，`setInterval` 會在 HUD 顯示 ⏱，時間到由房主（或單機）判定失敗。
+- **配色／畫風**：`PAL` 裡有各關配色（可含 `fog: [顏色, near, far]`、`win` 窗色）；關卡用 `pal: {1990: 'xxx', 2030: 'yyy'}` 指定。`style: 'toon' | 'neon' | 'flat'`（或分兩邊的物件）：toon 用 `MeshToonMaterial`，neon 會在 `add()` 的物件加發光邊線。`mat()` 的快取鍵包含畫風。
 - **章節進度**：`localStorage['kdroom.progress']`，過前一關才解鎖；有「全部解鎖（試玩用）」。
 - **捏角色**：`localStorage['kdroom.look']`，`LOOK_OPTS`（衣服、膚色、髮型、髮色、褲子、配件）。`makeAvatar(look, name)` 做角色；不同年代的隊友用 `ghostify` 變半透明「時間殘影」。單機時看得到另一個年代的自己。
 - **手機觸控模式**：`detectTouch()` 自動判斷（`pointer: coarse` 或觸控小螢幕），網址加 `?touch=1`／`?touch=0` 可以強制，主選單「操作」按鈕手動切換並存在 `localStorage['kdroom.touch']`。`body.touch` 時隱藏鍵盤說明、線索欄收進「📜 線索」按鈕；左 45% 畫面是浮動搖桿（`joy.f / joy.s` 併入移動），其餘滑動轉頭，`#tAct` 互動、`#tEra` 單機換年代。直拿時顯示「請轉成橫的」。
@@ -80,7 +82,8 @@
 - [ ] 用兩台電腦、不同網路實測多人（捏角色同步、隊員按提示、斷線交物品都還沒實測）
 - [x] 手機觸控操作（v0.6，只用模擬觸控測過，**還沒在真的手機上測**）
 - [x] 手機網址：GitHub Pages https://910228jason-ops.github.io/game/
-- [ ] 第二章再做 2～3 關（深海研究站：例如氧氣倒數、潛水艇聲納、水密門）
+- [x] 第二章八～十關
+- [ ] 第一章的「三種深度」目前只差在線索欄，之後可以像第二章一樣讓謎題本身變化
 - [ ] 第三章以後（構想：鏡中宅邸、夜班博物館、夜行列車），見 `設計/關卡設計.md`
 - [ ] 放進 Discord 活動（Activity）：需要靜態網頁（GitHub Pages，要公開 repo）＋一個換 token 的端點（例如 Cloudflare Workers）。動之前要先問使用者
 - [ ] 第二個遊戲《耳語群島》（謊言傳染），企劃在 `設計/企劃_隔代房間與耳語群島.md`
