@@ -1,6 +1,6 @@
 # 《隔代房間》AI 交接文件
 
-> 最後更新：2026-11-18（v0.4）。接手的 AI 請先讀完這份，再讀 `設計/關卡設計.md`。
+> 最後更新：2026-11-18（v0.5，六關）。接手的 AI 請先讀完這份，再讀 `設計/關卡設計.md`。
 > 跟使用者溝通一律用**繁體中文**。
 
 ## 1. 這是什麼
@@ -24,7 +24,7 @@
 - **Three.js 0.160.0**，用 importmap 從 jsdelivr 載入；低多邊形、`flatShading`。幾何用 `box() / cyl() / cone() / group()` 小工具。
 - **遊戲狀態 `S`**：`level, levelNo, era, who, held{玩家id: 物品}, f{關卡旗標}, cracks, done, mode('menu'|'solo'|'net'|'lobby'), diff, hintsLeft`。
   - 單機時玩家 id 就是年代字串（`'1990'`/`'2030'`），所以兩個年代各拿各的東西。
-- **關卡物件** `LEVEL1..LEVEL5`，`LEVELS = {1..5}`。每關有：
+- **關卡物件** `LEVEL1..LEVEL6`，`LEVELS = {1..6}`。第六關的木箱順序在 `init()` 隨機產生，存在 `S.f`，多人時由房主決定再廣播。每關有：
   - `name`、`init()`（重設 `S.f`）、`reset(item)`（丟進垃圾桶時「時間修正」放回原位）、`goal(era)`（右上線索 HTML）、`build(era)`（蓋場景）、`hint()`（依 `S.f` 進度回傳下一步提示）。
   - `build(era)` 裡用 `add(obj, { id, solid, label: () => 文字, act: () => {...} })` 註冊可互動物件。`solid` 是碰撞方塊 `{x,z,hw,hd}`。
   - 房間 8×6×2.8，玩家出生點約 `(0, 2.3)` 面向 -z。窗戶用 `buildRoom(era, { window: z })`。

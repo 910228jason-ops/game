@@ -216,7 +216,7 @@ const ME = { id: '1990', name: '我', era: '1990', color: '#E07A4F' };
 const pos = { x: 0, z: 2.3, yaw: 0, pitch: 0 };
 const soloPos = { 1990: { x: 0, z: 2.3, yaw: 0, pitch: 0 }, 2030: { x: 0, z: 2.3, yaw: 0, pitch: 0 } };
 let hits = [], solids = [];
-const ITEM_NAMES = { sd: '螺絲起子', tin: '餅乾鐵盒', pot: '小樹苗盆栽', key: '亮亮的鑰匙', rr: '除鏽劑', rr2030: '除鏽劑（2030）', coin: '一把零錢', rope: '麻繩', cap: '時光膠囊鐵罐', bucket: '水桶', rope2030: '麻繩（2030，還很牢）', handle: '拉桿把手', neg: '一條舊底片' };
+const ITEM_NAMES = { sd: '螺絲起子', tin: '餅乾鐵盒', pot: '小樹苗盆栽', key: '亮亮的鑰匙', rr: '除鏽劑', rr2030: '除鏽劑（2030）', coin: '一把零錢', rope: '麻繩', cap: '時光膠囊鐵罐', bucket: '水桶', rope2030: '麻繩（2030，還很牢）', handle: '拉桿把手', neg: '一條舊底片', paint: '紅油漆桶', oil: '機油罐', crank: '捲門搖把', hammer: '大鐵鎚', crank2030: '捲門搖把（2030，銅的）' };
 const COLORS = ['#E07A4F', '#4E8FA0', '#B5604A', '#3F6E8C', '#8C6BB0', '#5E9A4E'];
 const held = () => S.held[S.who] || null;
 const setHeld = (v) => { S.held[S.who] = v; };
@@ -862,7 +862,149 @@ LEVEL5.hint = () => {
   if (!f.scanned) return '2030 打開舊防潮箱，用手機翻拍底片。';
   return '照片裡的暗房門上寫著密碼。2030 到暗房門輸入。';
 };
-const LEVELS = { 1: LEVEL1, 2: LEVEL2, 3: LEVEL3, 4: LEVEL4, 5: LEVEL5 };
+// =====================================================================
+// 第六關：港邊老倉庫 (位置被打亂要做記號、埋進水泥、上油防鏽)
+//  2030 的木箱被後來的人搬亂了，1990 說「左邊第幾箱」沒用，只能靠油漆記號。
+// =====================================================================
+const CRATE_X = [-2.4, -0.8, 0.8, 2.4];
+const CRATE_STUFF = ['大鐵鎚', '一捆魚網', '空玻璃瓶', '一疊舊報紙'];
+const LEVEL6 = {
+  name: '第六關・港邊老倉庫',
+  init() {
+    // contents[箱子編號] = 內容；order2030[位置] = 箱子編號 (2030 的位置跟 1990 不一樣)
+    const contents = [...CRATE_STUFF].sort(() => Math.random() - 0.5);
+    const hammerId = contents.indexOf('大鐵鎚');
+    let order;
+    do order = [0, 1, 2, 3].sort(() => Math.random() - 0.5); while (order.indexOf(hammerId) === hammerId);
+    S.f = { contents, hammerId, order2030: order, painted: [], paint: 'floor', oil: 'shelf', oiled: false, crank: 'hook',
+      opened: [], gotHammer: false, gotCrank: false, smashed: false };
+  },
+  reset(it) {
+    const f = S.f;
+    if (it === 'paint') f.paint = 'floor';
+    if (it === 'oil') f.oil = 'shelf';
+    if (it === 'crank') f.crank = 'hook';
+  },
+  goal(era) {
+    return era === '1990'
+      ? '你在 1990 的港邊倉庫，工人正在補水泥地。<br>・木箱都開著，看得到裡面裝什麼<br>・捲門的搖把掛在牆上，放著會被偷<br>・海風很鹹，鐵做的東西容易鏽'
+      : '你在 2030 的廢棄倉庫，只有捲門能出去。<br>・木箱被後來的人搬亂了，全都釘死<br>・撬錯箱子會出事<br>・地上有一格特別硬的水泥';
+  },
+  build(era) {
+    const f = S.f, old = era === '1990';
+    buildRoom(era, { window: 0 });
+    // 木箱
+    for (let pos = 0; pos < 4; pos++) {
+      const id = old ? pos : f.order2030[pos], x = CRATE_X[pos], z = -2.3;
+      const painted = f.painted.includes(id), opened = !old && f.opened.includes(id);
+      const g = group(box(1.0, 0.8, 0.8, old ? '#9A6B43' : '#6E5B4E', x, 0, z));
+      if (old) g.add(box(0.8, 0.02, 0.6, '#3B2A20', x, 0.8, z));
+      else if (!opened) g.add(box(1.02, 0.04, 0.82, '#5E4E42', x, 0.8, z), box(0.06, 0.02, 0.84, '#8E8478', x - 0.3, 0.84, z), box(0.06, 0.02, 0.84, '#8E8478', x + 0.3, 0.84, z));
+      if (painted) g.add(box(1.02, 0.18, 0.02, old ? '#D9372B' : '#9A4A40', x, 0.45, z + 0.41));
+      add(g, {
+        id: 'crate' + pos, solid: { x, z, hw: 0.5, hd: 0.4 },
+        label: () => (old ? (held() === 'paint' ? '用油漆在這個箱子上做記號' : '看箱子裡裝什麼') : opened ? '打開的木箱' : held() ? '手上拿著東西' : '撬開這個木箱'),
+        act: () => {
+          if (old) {
+            if (held() === 'paint') {
+              if (painted) return msg('這個箱子已經有紅色記號了。');
+              f.painted.push(id); return msg('在箱子正面刷上一條紅漆。油漆很耐久，幾十年後應該還看得到。');
+            }
+            return msg(f.contents[id] === '大鐵鎚' ? '箱子裡有一把大鐵鎚，卡在箱底的木條下面，現在拿不出來。' : `箱子裡裝著${f.contents[id]}。`);
+          }
+          if (opened) return msg(f.contents[id] === '大鐵鎚' ? '鐵鎚已經拿走了。' : `箱子裡是爛掉的${f.contents[id].replace('一捆', '').replace('一疊', '')}。`);
+          if (held()) return msg('先把手上的東西放下。');
+          f.opened.push(id);
+          if (id === f.hammerId) { f.gotHammer = true; setHeld('hammer'); return msg('撬開木箱——裡面有一把大鐵鎚，還很結實！'); }
+          crack(`撬開木箱，裡面只有${f.contents[id]}的殘骸。\n箱子一倒，扯斷了屋頂的舊梁，倉庫晃了一下——時間裂痕！`);
+        },
+      });
+    }
+    // 水泥格
+    const solidCement = !old;
+    add(group(box(1.2, 0.02, 1.2, old ? '#8E9196' : '#B7B9BB', 2.6, 0, 0.9), ...(old ? [box(1.3, 0.12, 0.06, '#7A5032', 2.6, 0, 0.27), box(1.3, 0.12, 0.06, '#7A5032', 2.6, 0, 1.53)] : []),
+      ...(!old && f.smashed ? [box(0.5, 0.03, 0.5, '#4A4A4A', 2.6, 0, 0.9)] : [])), {
+      id: 'cement',
+      label: () => (old ? (held() === 'crank' ? '把搖把埋進濕水泥' : '剛倒的濕水泥') : held() === 'hammer' && !f.smashed ? '用鐵鎚敲開水泥' : '一格特別硬的水泥'),
+      act: () => {
+        if (old) {
+          if (held() === 'crank') { f.crank = 'cement'; setHeld(null); return msg('把搖把按進濕水泥裡，抹平。等水泥乾了，誰也拿不走。'); }
+          if (f.crank === 'cement') return msg('水泥慢慢在乾。搖把已經埋在裡面了。');
+          return msg('工人剛倒的水泥，還很濕，東西放進去就會被封住。');
+        }
+        if (f.smashed) {
+          // 1990 晚一步才把搖把埋進去：敲開的碎水泥裡會露出來 (避免卡關)
+          if (f.crank === 'cement' && !f.gotCrank) { if (held()) return msg('碎水泥裡露出一支搖把！先把手上的東西放下。'); f.gotCrank = true; setHeld('crank2030'); return msg('碎水泥裡露出一支銅搖把，撿起來！'); }
+          return msg('水泥已經敲開了。');
+        }
+        if (held() !== 'hammer') return msg('這格水泥比旁邊的地板新，硬得跟石頭一樣。徒手敲不開。');
+        f.smashed = true;
+        if (f.crank === 'cement') { f.gotCrank = true; setHeld('crank2030'); return msg('碰！水泥裂開，裡面埋著一支銅做的搖把，一點都沒壞！（鐵鎚放在一旁）'); }
+        setHeld(null);
+        return msg('碰！水泥裂開了……裡面只有碎石。（鐵鎚放在一旁）');
+      },
+    });
+    // 掛鉤與搖把
+    add(group(box(0.06, 0.06, 0.14, '#3E474F', -3.92, 1.5, 0.6), ...(old && f.crank === 'hook' ? [box(0.05, 0.5, 0.05, '#B8862E', -3.88, 1.05, 0.6), box(0.05, 0.05, 0.25, '#B8862E', -3.88, 1.05, 0.72)] : [])), {
+      id: 'hook',
+      label: () => (old ? (f.crank === 'hook' && !held() ? '拿下捲門搖把' : held() === 'crank' ? '把搖把掛回去' : '牆上的掛鉤') : '牆上的掛鉤'),
+      act: () => {
+        if (!old) return msg('掛鉤上空空的。聽說倉庫被小偷光顧過好幾次，值錢的銅都被拿走了。');
+        if (f.crank === 'hook' && !held()) { f.crank = 'hand'; setHeld('crank'); return msg('拿下捲門的搖把，是銅做的，不會生鏽。可是放在這裡很容易被偷……'); }
+        if (held() === 'crank') { f.crank = 'hook'; setHeld(null); return msg('搖把掛回掛鉤上。'); }
+        msg('一個空掛鉤。');
+      },
+    });
+    // 機油架
+    add(group(box(0.4, 1.4, 0.8, old ? '#7A5032' : '#6E6258', -3.75, 0, -0.8), ...(old && f.oil === 'shelf' ? [cyl(0.08, 0.1, 0.2, '#C9A23A', -3.7, 1.4, -0.8, 8)] : [])), {
+      id: 'shelf', solid: { x: -3.75, z: -0.8, hw: 0.22, hd: 0.4 },
+      label: () => (old ? (f.oil === 'shelf' && !held() ? '拿機油罐' : held() === 'oil' ? '把機油放回架上' : '工具架') : '生鏽的工具架'),
+      act: () => {
+        if (!old) return msg('架上有一個鏽穿的空油罐。');
+        if (f.oil === 'shelf' && !held()) { f.oil = 'hand'; setHeld('oil'); return msg('拿到一罐機油。'); }
+        if (held() === 'oil') { f.oil = 'shelf'; setHeld(null); return msg('機油放回架上。'); }
+        msg('工具架上剩幾支扳手。');
+      },
+    });
+    // 油漆桶 (1990 地上)
+    if (old && f.paint === 'floor') add(group(cyl(0.16, 0.16, 0.3, '#D9372B', -3.2, 0, 2.3, 10), cyl(0.17, 0.17, 0.03, '#8E2A20', -3.2, 0.3, 2.3, 10)), {
+      id: 'paint', label: () => (held() ? '手上拿著東西' : '拿起紅油漆桶'),
+      act: () => { if (held()) return msg('先把手上的東西放下。'); f.paint = 'hand'; setHeld('paint'); msg('拿起一桶紅油漆，刷子就插在裡面。'); },
+    });
+    if (old && f.paint !== 'floor' && held() === 'paint') add(box(0.6, 0.01, 0.6, '#7A5032', -3.2, 0.001, 2.3), {
+      id: 'paintSpot', label: () => '把油漆桶放下', act: () => { f.paint = 'floor'; setHeld(null); msg('油漆桶放回地上。'); },
+    });
+    // 捲門與手搖鏈條 (出口)
+    add(group(box(2.2, 2.3, 0.06, old ? '#7C858C' : '#5B6670', 0.6, 0, 2.96), ...[0.4, 0.9, 1.4, 1.9].map((y) => box(2.2, 0.03, 0.02, old ? '#5B6670' : '#3E474F', 0.6, y, 2.92))), {
+      id: 'door', label: () => '捲門',
+      act: () => msg(old ? '捲門外是 1990 年的碼頭，漁船正在進港。你的任務是幫 2030 的隊友逃出去。' : '捲門很重，要用旁邊的手搖鏈條才拉得起來。'),
+    });
+    add(group(box(0.3, 0.4, 0.2, old ? '#3E474F' : '#4A3E38', 2.2, 1.0, 2.86), box(0.04, 1.0, 0.04, f.oiled ? (old ? '#555B60' : '#6E7378') : (old ? '#555B60' : '#8E5A3A'), 2.15, 0.1, 2.84)), {
+      id: 'hoist',
+      label: () => (old ? (held() === 'oil' ? '給鏈條上油' : '捲門的手搖鏈條') : held() === 'crank2030' ? '裝上搖把，搖開捲門' : '捲門的手搖鏈條'),
+      act: () => {
+        if (old) {
+          if (held() === 'oil') { f.oiled = true; f.oil = 'used'; setHeld(null); return msg('把整罐機油抹在鏈條和齒輪上。上過油的鐵，就算吹幾十年海風也不容易鏽。'); }
+          return msg(f.oiled ? '鏈條油亮亮的。' : '手搖鏈條，要插上搖把才能轉。海風很鹹，鏈條已經有點紅紅的了。');
+        }
+        if (held() !== 'crank2030') return msg(f.oiled ? '鏈條還算乾淨，有一層老油。可是搖把不見了，插孔是空的。' : '鏈條鏽成一整塊紅褐色，插孔也是空的。');
+        if (!f.oiled) return msg('插上搖把用力搖……鏈條鏽死成一整塊，完全轉不動。\n要是當年有人保養過就好了。');
+        finish(true, '插上搖把，嘎啦嘎啦地搖——上過油的鏈條轉動了，捲門慢慢升起！你們逃出了港邊老倉庫。');
+      },
+    });
+    if (old) trashBin(era, 3.5, 2.4);
+  },
+};
+LEVEL6.hint = () => {
+  const f = S.f;
+  if (!f.gotHammer && !f.painted.includes(f.hammerId)) return '1990 的木箱都開著，先找出鐵鎚在哪一箱。2030 的箱子被後來的人搬亂了，說「左邊第幾箱」沒用——1990 拿紅油漆桶在那個箱子上做記號。';
+  if (f.crank !== 'cement' && !f.gotCrank) return '捲門的搖把掛在牆上會被偷走。1990 趁水泥還沒乾，把搖把埋進地上那一格濕水泥裡。';
+  if (!f.oiled) return '海風的鹽分會讓鏈條鏽死。1990 拿工具架上的機油，給捲門的手搖鏈條上油。';
+  if (!f.gotHammer) return '2030 撬開有紅色油漆記號的那個木箱，裡面有鐵鎚。';
+  if (!f.gotCrank) return '2030 拿鐵鎚去敲開地上那一格特別硬的水泥。';
+  return '2030 拿著搖把去捲門旁邊的手搖鏈條，把捲門搖開！';
+};
+const LEVELS = { 1: LEVEL1, 2: LEVEL2, 3: LEVEL3, 4: LEVEL4, 5: LEVEL5, 6: LEVEL6 };
 
 // =====================================================================
 // 連線：複製貼上連線碼 (WebRTC，不需要伺服器)
@@ -1298,6 +1440,7 @@ const LEVEL_INFO = [
   { n: 3, name: '第三關・巷口雜貨店', desc: '侵蝕、自助付款、雙向密碼' },
   { n: 4, name: '第四關・海邊燈塔', desc: '光線、時鐘、兩邊同時拉桿' },
   { n: 5, name: '第五關・老照相館', desc: '雙向密碼、保存環境、翻拍底片' },
+  { n: 6, name: '第六關・港邊老倉庫', desc: '位置被打亂要做記號、埋進水泥、上油防鏽' },
 ];
 let PROG = {};
 try { PROG = JSON.parse(localStorage.getItem('kdroom.progress')) || {}; } catch (e) { PROG = {}; }
