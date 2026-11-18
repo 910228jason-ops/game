@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>自習室抓鬼 原型</title>
+<style>
+  :root {
+    --bg: #1e2124; --panel: #2b2f33; --text: #ecebe7; --muted: #a9a59c;
+    --accent: #e0b04f; --bad: #e0675a; --good: #6cc08a; --line: #3d4247;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+  body { display: flex; flex-direction: column; align-items: center; touch-action: manipulation; }
+  #hud { width: 100%; max-width: 960px; display: flex; gap: 8px; justify-content: space-between;
+    padding: 8px 12px; font-size: 14px; flex-wrap: wrap; }
+  #hud span b { color: var(--accent); }
+  #wrap { position: relative; width: 100%; max-width: 960px; flex: 0 0 auto; }
+  canvas { display: block; width: 100%; height: auto; background: #c9b48f; border-radius: 12px; }
+  #controls { width: 100%; max-width: 960px; display: flex; gap: 8px; padding: 10px 12px 16px; flex-wrap: wrap; justify-content: center; }
+  button { font: inherit; font-size: 15px; min-height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--text); cursor: pointer; user-select: none; -webkit-user-select: none; }
+  button.primary { background: var(--accent); color: #1e2124; border-color: var(--accent); font-weight: 700; }
+  button:disabled { opacity: .4; }
+  button.holding { background: var(--bad); border-color: var(--bad); }
+  #overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    background: rgba(20,22,25,.82); border-radius: 12px; padding: 16px; }
+  #overlay .box { max-width: 520px; text-align: center; }
+  #overlay h1 { margin: 0 0 6px; font-size: 26px; }
+  #overlay p { color: var(--muted); line-height: 1.7; margin: 8px 0; font-size: 14px; }
+  #overlay .row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+  #toast { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); background: rgba(20,22,25,.88);
+    padding: 8px 14px; border-radius: 999px; font-size: 14px; pointer-events: none; opacity: 0; transition: opacity .2s; white-space: nowrap; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <span id="hRole"></span>
+  <span>時間 <b id="hTime">--</b></span>
+  <span>惡作劇 <b id="hTasks">0/4</b></span>
+  <span>抓錯 <b id="hStrikes">0/3</b></span>
+</div>
+<div id="wrap">
+  <canvas id="cv" width="960" height="640"></canvas>
+  <div id="toast"></div>
+  <div id="overlay">
+    <div class="box" id="menu">
+      <h1>自習室抓鬼</h1>
+      <p>自習課上，有幾個「搗蛋鬼」混在乖乖讀書的同學裡，想趁巡堂員不注意完成惡作劇。<br>
+        巡堂員要從一舉一動看出誰不對勁，走近點名抓人——抓錯 3 次就輸。</p>
+      <p>原型版：你對電腦。點地板走路，點同學（巡堂員）點名。</p>
+      <div class="row">
+        <button class="primary" data-role="seeker">當巡堂員</button>
+        <button class="primary" data-role="hider">當搗蛋鬼</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="controls"></div>
+
+<script>
+'use strict';
+// ================= 場地 =================
+const W = 960, H = 640;
+const COLS = 6, ROWS = 5;
+const SEATS = [];
+for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) SEATS.push({ x: 180 + c * 120, y: 190 + r * 78 });
+const AISLES = [120, 240, 360, 480, 600, 720, 840];
+const FRONT_Y = 132, BACK_Y = 578;
+const POINTS = [
+  { name: '黑板角落', x: 300, y: 78 },
+  { name: '窗台', x: 912, y: 340 },
+  { name: '置物櫃', x: 840, y: 608 },
+  { name: '垃圾桶', x: 110, y: 608 },
+  { name: '後門', x: 48, y: 340 },
+];
+const WANDER = [...POINTS, { name: '講台', x: 480, y: 112 }, { name: '書架', x: 600, y: 608 }];
+const TASKS_NEEDED = 4, TASK_TIME = 6, MAX_STRIKES = 3, GAME_TIME = 150;
+const HIDERS = 3, SPEED = 70, SEEKER_SPEED = 95;
+const ACCUSE_RANGE = 130, VIEW_R = 270, VIEW_HALF = Math.PI / 3; // 巡堂員視野：半徑 270、120 度
+const HAIR = ['#2a1d17', '#4b3122', '#6e4a2c', '#1b1b1b', '#8a5a3b', '#3a2a40'];
+const SKIN = ['#f2d3b3', '#e8c39e', '#d9a982', '#f5dcc4'];
+
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const nearestAisle = (x) => AISLES.reduce((best, a) => (Math.abs(a - x) < Math.abs(best - x) ? a : best), AISLES[0]);
+
+// 走道路線：先到最近的走道 → 前/後通道 → 目標的走道 → 目標。看起來跟 NPC 一樣在走道上走。
+function route(from, to) {
+  const a1 = nearestAisle(from.x), a2 = nearestAisle(to.x);
+  const cy = Math.abs(from.y - FRONT_Y) + Math.abs(to.y - FRONT_Y) < Math.abs(from.y - BACK_Y) + Math.abs(to.y - BACK_Y) ? FRONT_Y : BACK_Y;
+  const pts = a1 === a2 ? [{ x: a1, y: from.y }, { x: a2, y: to.y }, { x: to.x, y: to.y }]
+    : [{ x: a1, y: from.y }, { x: a1, y: cy }, { x: a2, y: cy }, { x: a2, y: to.y }, { x: to.x, y: to.y }];
+  return pts.filter((p, i) => i === pts.length - 1 || Math.hypot(p.x - (i ? pts[i - 1].x : from.x), p.y - (i ? pts[i - 1].y : from.y)) > 1);
+}
+
+// ================= 遊戲狀態 =================
+let G = null;
+
+function newGame(playerRole) {
+  const seats = SEATS.map((s, i) => i).sort(() => Math.random() - 0.5);
+  const ents = seats.map((si, i) => ({
+    id: i, seat: si, x: SEATS[si].x, y: SEATS[si].y,
+    hair: pick(HAIR), skin: pick(SKIN), big: rand(0.92, 1.08),
+    state: 'write', timer: rand(1, 6), path: [], hider: i < HIDERS, caught: false,
+    phase: rand(0, 6.28), aiPlan: null, waitAt: 0,
+  }));
+  const seeker = { x: 480, y: 108, facing: Math.PI / 2, path: [], frozen: 0, look: 0, target: null, sus: new Map() };
+  const points = POINTS.map((p) => ({ ...p, progress: 0, done: false, by: null }));
+  G = {
+    role: playerRole, ents, seeker, points, time: GAME_TIME, tasks: 0, strikes: 0,
+    over: null, me: playerRole === 'hider' ? ents[0] : null, holding: false, t: 0,
+  };
+  buildControls();
+  hideOverlay();
+  toast(playerRole === 'seeker' ? '找出 3 個搗蛋鬼！走近後點他們' : '你是有黃色虛線圈的那個人，完成惡作劇但別被看到');
+}
+
+// ================= 巡堂員視野 =================
+function inView(p, r = VIEW_R) {
+  const s = G.seeker;
+  const d = Math.hypot(p.x - s.x, p.y - s.y);
+  if (d > r) return false;
+  if (d < 40) return true;
+  let a = Math.atan2(p.y - s.y, p.x - s.x) - s.facing;
+  a = Math.atan2(Math.sin(a), Math.cos(a));
+  return Math.abs(a) < VIEW_HALF;
+}
+
+// ================= 移動 =================
+function walkTo(e, to) {
+  e.path = route(e, to);
+  e.state = 'walk';
+  stopTask(e);
+}
+
+function stepPath(e, speed, dt) {
+  if (!e.path.length) return true;
+  let left = speed * dt;
+  while (left > 0 && e.path.length) {
+    const p = e.path[0];
+    const d = Math.hypot(p.x - e.x, p.y - e.y);
+    if (d <= left) { e.x = p.x; e.y = p.y; left -= d; e.path.shift(); }
+    else {
+      e.x += ((p.x - e.x) / d) * left; e.y += ((p.y - e.y) / d) * left;
+      if (e === G.seeker) e.facing = Math.atan2(p.y - e.y, p.x - e.x);
+      left = 0;
+    }
+  }
+  return e.path.length === 0;
+}
+
+const atSeat = (e) => Math.hypot(e.x - SEATS[e.seat].x, e.y - SEATS[e.seat].y) < 2;
+const pointNear = (e) => G.points.find((p) => !p.done && Math.hypot(p.x - e.x, p.y - e.y) < 34);
+
+function stopTask(e) { if (e.state === 'mischief') e.state = 'idle'; }
+
+// ================= NPC（也是 AI 搗蛋鬼的偽裝行為） =================
+function seatedChoice(e) {
+  const r = Math.random();
+  if (r < 0.5) { e.state = 'write'; e.timer = rand(3, 9); }
+  else if (r < 0.66) { e.state = 'doze'; e.timer = rand(3, 8); }
+  else if (r < 0.86) { e.state = 'look'; e.timer = rand(1.5, 4); }
+  else { e.aiPlan = { kind: 'wander', to: pick(WANDER) }; walkTo(e, e.aiPlan.to); }
+}
+
+function updateNpc(e, dt) {
+  if (e.state === 'walk') {
+    if (stepPath(e, SPEED, dt)) {
+      if (atSeat(e)) { e.aiPlan = null; seatedChoice(e); }
+      else { e.state = 'idle'; e.timer = rand(1.5, 4); }
+    }
+    return;
+  }
+  e.timer -= dt;
+  if (e.timer > 0) return;
+  if (!atSeat(e)) { walkTo(e, SEATS[e.seat]); return; }
+  seatedChoice(e);
+}
+
+function updateAiHider(e, dt) {
+  const plan = e.aiPlan;
+  if (plan && plan.kind === 'task') {
+    const p = plan.point;
+    if (p.done) { e.aiPlan = null; walkTo(e, SEATS[e.seat]); return; }
+    if (e.state === 'walk') { if (stepPath(e, SPEED, dt)) { e.state = 'idle'; e.waitAt = 0; e.seen = inView(p); e.check = 0; } return; }
+    // 反應有延遲：每 0.5–1.3 秒才確認一次巡堂員有沒有在看，所以會被轉頭的巡堂員逮到
+    e.check -= dt;
+    if (e.check <= 0) { e.seen = inView(p, VIEW_R + 20); e.check = rand(0.5, 1.3); }
+    if (e.seen) { // 巡堂員看得到這裡：裝沒事
+      stopTask(e);
+      e.waitAt += dt;
+      if (e.waitAt > rand(4, 7)) { e.aiPlan = null; walkTo(e, SEATS[e.seat]); }
+      return;
+    }
+    e.state = 'mischief';
+    doTask(e, p, dt);
+    if (p.done) { e.aiPlan = null; walkTo(e, SEATS[e.seat]); }
+    return;
+  }
+  if (e.state === 'walk') { updateNpc(e, dt); return; }
+  e.timer -= dt;
+  if (e.timer > 0) return;
+  if (!atSeat(e)) { walkTo(e, SEATS[e.seat]); return; }
+  const free = G.points.filter((p) => !p.done && !G.ents.some((o) => o !== e && o.aiPlan && o.aiPlan.point === p));
+  // 玩家當搗蛋鬼時，AI 隊友比較保守，主角要自己出力
+  if (free.length && Math.random() < (G.role === 'hider' ? 0.15 : 0.25)) {
+    const p = free.reduce((b, q) => (inView(q) ? b : (!b || dist(q, e) < dist(b, e) ? q : b)), null) || pick(free);
+    e.aiPlan = { kind: 'task', point: p };
+    walkTo(e, p);
+  } else seatedChoice(e);
+}
+
+function doTask(e, p, dt) {
+  p.progress += dt;
+  p.by = e;
+  if (p.progress >= TASK_TIME) {
+    p.done = true; p.progress = TASK_TIME; G.tasks++;
+    e.state = 'idle'; e.timer = rand(1, 2);
+    if (G.role === 'hider') toast(`「${p.name}」惡作劇完成！(${G.tasks}/${TASKS_NEEDED})`);
+    else toast(`有人在「${p.name}」得逞了… (${G.tasks}/${TASKS_NEEDED})`);
+  }
+}
+
+// ================= 玩家：搗蛋鬼 =================
+function updatePlayerHider(e, dt) {
+  if (e.caught) return;
+  if (e.state === 'walk') { if (stepPath(e, SPEED, dt)) e.state = atSeat(e) ? 'write' : 'idle'; return; }
+  if (G.holding) {
+    const p = pointNear(e);
+    if (p) { e.state = 'mischief'; doTask(e, p, dt); if (p.done) G.holding = false; }
+  } else stopTask(e);
+}
+
+// ================= 巡堂員 =================
+function accuse(e) {
+  const s = G.seeker;
+  if (s.frozen > 0 || e.caught) return;
+  if (dist(s, e) > ACCUSE_RANGE) { if (G.role === 'seeker') toast('太遠了，走近一點再點名'); return; }
+  s.facing = Math.atan2(e.y - s.y, e.x - s.x);
+  s.path = [];
+  if (e.hider) {
+    e.caught = true; e.state = 'caught'; e.path = []; e.aiPlan = null;
+    const left = G.ents.filter((x) => x.hider && !x.caught).length;
+    toast(G.role === 'seeker' ? `抓到了！還剩 ${left} 個` : (e === G.me ? '你被抓到了！' : `隊友被抓了！還剩 ${left} 個`));
+  } else {
+    G.strikes++; s.frozen = 3;
+    e.state = 'look'; e.timer = 2;
+    toast(G.role === 'seeker' ? `抓錯了，那是乖學生 (${G.strikes}/${MAX_STRIKES})` : `巡堂員抓錯人了！(${G.strikes}/${MAX_STRIKES})`);
+  }
+  G.seeker.sus.delete(e);
+}
+
+function updateAiSeeker(s, dt) {
+  if (s.frozen > 0) return;
+  // 懷疑值：看得到的惡作劇大幅加分；站著或走動的人小幅加分；其他慢慢消退。
+  for (const e of G.ents) {
+    if (e.caught) continue;
+    let v = s.sus.get(e) || 0;
+    if (inView(e)) {
+      if (e.state === 'mischief') v += 1.6 * dt;
+      else if (e.state === 'walk' || e.state === 'idle') v += 0.09 * dt * Math.random();
+      else v += 0.02 * dt * Math.random();
+    }
+    v = Math.max(0, v - 0.025 * dt);
+    if (v > 0) s.sus.set(e, v); else s.sus.delete(e);
+  }
+  let best = null, bestV = 0.6;
+  for (const [e, v] of s.sus) if (v > bestV) { best = e; bestV = v; }
+  if (best) {
+    if (dist(s, best) <= ACCUSE_RANGE - 10) { accuse(best); return; }
+    if (!s.target || s.target !== best || !s.path.length) { s.target = best; s.path = route(s, best); }
+    stepPath(s, SEEKER_SPEED, dt);
+    return;
+  }
+  s.target = null;
+  if (s.path.length) { stepPath(s, SEEKER_SPEED, dt); if (!s.path.length) s.look = rand(1.5, 3); return; }
+  if (s.look > 0) { s.look -= dt; s.facing += dt * 1.6 * (Math.sin(G.t * 0.7) > 0 ? 1 : -1); return; }
+  // 巡邏：多半去看還沒被得逞的惡作劇地點附近 (站在走道上望過去)，偶爾隨便走走
+  const open = G.points.filter((p) => !p.done);
+  if (open.length && Math.random() < 0.65) {
+    const p = pick(open);
+    const ax = nearestAisle(p.x);
+    s.path = route(s, { x: ax, y: Math.min(BACK_Y, Math.max(FRONT_Y, p.y + (p.y > 320 ? -150 : 150))) });
+  } else {
+    const spots = [...WANDER, ...AISLES.map((x) => ({ x, y: pick([FRONT_Y, 300, BACK_Y]) }))];
+    s.path = route(s, pick(spots));
+  }
+}
+
+function updatePlayerSeeker(s, dt) {
+  if (s.frozen > 0) return;
+  stepPath(s, SEEKER_SPEED, dt);
+}
+
+// ================= 主迴圈 =================
+function update(dt) {
+  G.t += dt;
+  const s = G.seeker;
+  if (s.frozen > 0) s.frozen -= dt;
+  G.time -= dt;
+  for (const e of G.ents) {
+    e.phase += dt;
+    if (e.caught) continue;
+    if (e === G.me) updatePlayerHider(e, dt);
+    else if (e.hider) updateAiHider(e, dt);
+    else updateNpc(e, dt);
+  }
+  if (G.role === 'seeker') updatePlayerSeeker(s, dt); else updateAiSeeker(s, dt);
+
+  const hidersLeft = G.ents.filter((e) => e.hider && !e.caught).length;
+  if (G.tasks >= TASKS_NEEDED) endGame('hider', '搗蛋鬼完成了所有惡作劇！');
+  else if (G.strikes >= MAX_STRIKES) endGame('hider', '巡堂員抓錯太多次，信用破產！');
+  else if (!hidersLeft) endGame('seeker', '所有搗蛋鬼都被抓到了！');
+  else if (G.time <= 0) endGame('seeker', '下課鐘響，惡作劇沒完成！');
+}
+
+function endGame(winner, why) {
+  if (G.over) return;
+  G.over = winner;
+  const win = winner === G.role;
+  const hiders = G.ents.filter((e) => e.hider);
+  showOverlay(`
+    <h1>${win ? '你贏了！' : '你輸了'}</h1>
+    <p>${why}</p>
+    <p>惡作劇 ${G.tasks}/${TASKS_NEEDED}・抓到 ${hiders.filter((e) => e.caught).length}/${HIDERS}・抓錯 ${G.strikes} 次<br>
+      搗蛋鬼的位置已用紅圈標出來了</p>
+    <div class="row">
+      <button class="primary" data-role="${G.role}">再玩一次</button>
+      <button data-role="${G.role === 'seeker' ? 'hider' : 'seeker'}">換當${G.role === 'seeker' ? '搗蛋鬼' : '巡堂員'}</button>
+    </div>`);
+}
+
+// ================= 繪圖 =================
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+function drawRoom() {
+  ctx.fillStyle = '#c9b48f'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(0,0,0,.05)'; ctx.lineWidth = 1;
+  for (let y = 0; y < H; y += 32) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  ctx.fillStyle = '#2f4a3a'; ctx.fillRect(200, 14, 560, 40);          // 黑板
+  ctx.fillStyle = '#7a5a3a'; ctx.fillRect(420, 70, 120, 26);          // 講台
+  ctx.fillStyle = '#8fb6d1'; ctx.fillRect(W - 14, 200, 10, 280);      // 窗
+  ctx.fillStyle = '#6b4f35'; ctx.fillRect(4, 290, 10, 100);           // 後門
+  for (const s of SEATS) { ctx.fillStyle = '#8a6a48'; ctx.fillRect(s.x - 32, s.y - 34, 64, 18); }
+  for (const p of G.points) {
+    ctx.fillStyle = p.done ? 'rgba(108,192,138,.35)' : 'rgba(224,176,79,.22)';
+    ctx.beginPath(); ctx.arc(p.x, p.y, 30, 0, 7); ctx.fill();
+    ctx.fillStyle = 'rgba(30,33,36,.75)'; ctx.font = '13px system-ui, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(p.done ? `${p.name} ✓` : p.name, p.x, p.y - 34 < 12 ? p.y + 46 : p.y - 34);
+    if (G.role === 'hider' && !p.done && p.progress > 0) {
+      ctx.fillStyle = '#1e2124'; ctx.fillRect(p.x - 24, p.y + 20, 48, 6);
+      ctx.fillStyle = '#e0b04f'; ctx.fillRect(p.x - 24, p.y + 20, 48 * (p.progress / TASK_TIME), 6);
+    }
+  }
+}
+
+function drawCone() {
+  const s = G.seeker;
+  ctx.fillStyle = G.role === 'hider' ? 'rgba(224,103,90,.16)' : 'rgba(255,255,255,.10)';
+  ctx.beginPath(); ctx.moveTo(s.x, s.y);
+  ctx.arc(s.x, s.y, VIEW_R, s.facing - VIEW_HALF, s.facing + VIEW_HALF); ctx.closePath(); ctx.fill();
+  if (G.role === 'seeker') {
+    ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.setLineDash([6, 6]);
+    ctx.beginPath(); ctx.arc(s.x, s.y, ACCUSE_RANGE, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+  }
+}
+
+function drawStudent(e) {
+  const t = e.phase;
+  let hx = 0, hy = -4, wob = 0;
+  // 巡堂員玩家：看不到的地方，惡作劇看起來就只是站著
+  const showMischief = e.state === 'mischief' && (G.role === 'hider' || inView(e));
+  if (e.state === 'write') hy += Math.sin(t * 6) * 0.8;
+  if (e.state === 'doze') { hy += 3; hx = Math.sin(t * 0.8) * 2; }
+  if (e.state === 'look') hx = Math.sin(t * 2.2) * 4;
+  if (e.state === 'walk') wob = Math.sin(t * 10) * 1.5;
+  if (showMischief) { wob = Math.sin(t * 22) * 2.5; }
+  const x = e.x + wob, y = e.y;
+  const k = e.big;
+  ctx.fillStyle = e.caught ? '#777' : '#3c4f7a';
+  ctx.beginPath(); ctx.ellipse(x, y + 6, 14 * k, 11 * k, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = e.caught ? '#999' : e.skin;
+  ctx.beginPath(); ctx.arc(x + hx, y + hy, 9 * k, 0, 7); ctx.fill();
+  ctx.fillStyle = e.caught ? '#555' : e.hair;
+  ctx.beginPath(); ctx.arc(x + hx, y + hy - 2, 9 * k, Math.PI, 0); ctx.fill();
+  if (e.state === 'write') { ctx.strokeStyle = '#333'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + 9, y - 14); ctx.lineTo(x + 12 + Math.sin(t * 9) * 2, y - 20); ctx.stroke(); }
+  ctx.textAlign = 'center';
+  if (e.state === 'doze') { ctx.fillStyle = 'rgba(30,33,36,.7)'; ctx.font = '12px system-ui'; ctx.fillText('z', x + 14, y - 14 - (t % 2) * 4); }
+  if (showMischief) { ctx.fillStyle = '#e0b04f'; ctx.font = 'bold 14px system-ui'; ctx.fillText('✦', x + Math.sin(t * 9) * 12, y - 22); }
+  if (e.caught) { ctx.fillStyle = '#e0675a'; ctx.font = 'bold 18px system-ui'; ctx.fillText('×', x, y - 16); }
+  // 標記：玩家自己、隊友 (只有搗蛋鬼看得到)、結束後公布答案
+  if (e === G.me) { ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.arc(x, y + 2, 20, 0, 7); ctx.stroke(); ctx.setLineDash([]); }
+  else if (G.role === 'hider' && e.hider && !e.caught) { ctx.fillStyle = '#ffd34d'; ctx.beginPath(); ctx.arc(x, y - 22, 3.5, 0, 7); ctx.fill(); }
+  if (G.over && e.hider) { ctx.strokeStyle = '#e0675a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y + 2, 22, 0, 7); ctx.stroke(); }
+}
+
+function drawSeeker() {
+  const s = G.seeker;
+  ctx.fillStyle = '#2b2f33'; ctx.beginPath(); ctx.ellipse(s.x, s.y + 6, 16, 13, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = '#f0d0ae'; ctx.beginPath(); ctx.arc(s.x, s.y - 5, 10, 0, 7); ctx.fill();
+  ctx.fillStyle = '#5a5a5a'; ctx.beginPath(); ctx.arc(s.x, s.y - 7, 10, Math.PI, 0); ctx.fill();
+  ctx.strokeStyle = '#1e2124'; ctx.lineWidth = 1.5; ctx.strokeRect(s.x - 7, s.y - 7, 6, 4); ctx.strokeRect(s.x + 1, s.y - 7, 6, 4);
+  if (s.frozen > 0) { ctx.fillStyle = '#e0675a'; ctx.font = 'bold 13px system-ui'; ctx.textAlign = 'center'; ctx.fillText('尷尬…', s.x, s.y - 22); }
+}
+
+function render() {
+  drawRoom();
+  drawCone();
+  const all = [...G.ents].sort((a, b) => a.y - b.y);
+  for (const e of all) drawStudent(e);
+  drawSeeker();
+}
+
+// ================= 輸入 =================
+function canvasPoint(ev) {
+  const r = cv.getBoundingClientRect();
+  return { x: ((ev.clientX - r.left) / r.width) * W, y: ((ev.clientY - r.top) / r.height) * H };
+}
+
+cv.addEventListener('pointerdown', (ev) => {
+  if (!G || G.over) return;
+  const p = canvasPoint(ev);
+  if (G.role === 'seeker') {
+    const s = G.seeker;
+    const hit = G.ents.filter((e) => !e.caught && Math.hypot(e.x - p.x, e.y - p.y) < 20).sort((a, b) => dist(a, p) - dist(b, p))[0];
+    if (hit) { accuse(hit); return; }
+    if (s.frozen > 0) return;
+    s.facing = Math.atan2(p.y - s.y, p.x - s.x);
+    s.path = route(s, p);
+  } else {
+    const me = G.me;
+    if (me.caught) return;
+    G.holding = false;
+    walkTo(me, p);
+  }
+});
+
+function buildControls() {
+  const box = document.getElementById('controls');
+  box.innerHTML = '';
+  if (G.role === 'seeker') {
+    const tip = document.createElement('span');
+    tip.style.cssText = 'color:var(--muted);font-size:14px;align-self:center';
+    tip.textContent = '點地板走路並轉頭看；虛線圈內的同學可以點名。只有看得到的地方才看得出誰在搗蛋。';
+    box.appendChild(tip);
+    return;
+  }
+  const btn = (label, fn, cls) => { const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; b.onclick = fn; box.appendChild(b); return b; };
+  const seatAct = (st) => () => { const me = G.me; if (me.caught || !atSeat(me)) { toast('要先回座位'); return; } me.state = st; };
+  btn('回座位', () => { if (!G.me.caught) { G.holding = false; walkTo(G.me, SEATS[G.me.seat]); } });
+  btn('寫筆記', seatAct('write'));
+  btn('打瞌睡', seatAct('doze'));
+  btn('東張西望', seatAct('look'));
+  const task = btn('按住惡作劇', null, 'primary');
+  const start = (ev) => { ev.preventDefault(); if (!pointNear(G.me) || G.me.state === 'walk') { toast('要站在惡作劇地點（黃色圓圈）'); return; } G.holding = true; task.classList.add('holding'); };
+  const end = () => { G.holding = false; task.classList.remove('holding'); };
+  task.addEventListener('pointerdown', start);
+  task.addEventListener('pointerup', end);
+  task.addEventListener('pointerleave', end);
+  task.addEventListener('pointercancel', end);
+}
+
+// ================= 介面 =================
+const overlay = document.getElementById('overlay');
+function showOverlay(html) { overlay.innerHTML = `<div class="box">${html}</div>`; overlay.classList.remove('hidden'); }
+function hideOverlay() { overlay.classList.add('hidden'); }
+overlay.addEventListener('click', (ev) => { const b = ev.target.closest('button[data-role]'); if (b) newGame(b.dataset.role); });
+
+let toastTimer = 0;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.opacity = 1;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.style.opacity = 0; }, 2400);
+}
+
+function updateHud() {
+  document.getElementById('hRole').textContent = G.role === 'seeker' ? '你是：巡堂員' : (G.me.caught ? '你是：搗蛋鬼（已被抓）' : '你是：搗蛋鬼');
+  document.getElementById('hTime').textContent = Math.max(0, Math.ceil(G.time));
+  document.getElementById('hTasks').textContent = `${G.tasks}/${TASKS_NEEDED}`;
+  document.getElementById('hStrikes').textContent = `${G.strikes}/${MAX_STRIKES}`;
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (G) { if (!G.over) update(dt); render(); updateHud(); }
+  requestAnimationFrame(frame);
+}
+
+// 選單畫面的背景：先放一局不動的教室
+G = { role: 'seeker', ents: [], seeker: { x: 480, y: 108, facing: Math.PI / 2, frozen: 0 }, points: POINTS.map((p) => ({ ...p, progress: 0, done: false })), time: GAME_TIME, tasks: 0, strikes: 0, over: 'menu', me: null, t: 0 };
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

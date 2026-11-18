@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>隔代房間 手機橫式操作</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#F2B84B}a:hover{color:#ffd27a}
+</style>
+</helmet>
+<div style="width: 844px; height: 390px; position: relative; overflow: hidden; font-family: 'Noto Sans TC', sans-serif; color: #FFFFFF; background: #2A1E16">
+  <svg width="844" height="390" viewBox="0 0 844 390" aria-hidden="true" style="position: absolute; inset: 0">
+    <polygon points="0,0 844,0 690,80 154,80" fill="#C99A5B"/>
+    <polygon points="154,80 690,80 690,270 154,270" fill="#E2B877"/>
+    <polygon points="0,0 154,80 154,270 0,390" fill="#C8975A"/>
+    <polygon points="844,0 690,80 690,270 844,390" fill="#B9874E"/>
+    <polygon points="0,390 154,270 690,270 844,390" fill="#8C5E3A"/>
+    <polygon points="200,185 345,185 358,270 186,270" fill="#6B4228"/>
+    <polygon points="218,135 324,135 324,185 218,185" fill="#3B3632"/>
+    <polygon points="228,142 300,142 300,178 228,178" fill="#6E8C7A"/>
+    <polygon points="370,100 422,100 422,156 370,156" fill="#F4ECDD"/>
+    <polygon points="370,100 422,100 422,112 370,112" fill="#C9473A"/>
+    <polygon points="450,205 660,205 680,270 430,270" fill="#A8483A"/>
+  </svg>
+
+  <div style="position: absolute; left: 16px; top: 14px; display: flex; gap: 8px; align-items: center">
+    <span style="font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 18px; background: #F2B84B; color: #2A1E16; border-radius: 10px; padding: 4px 10px">1990</span>
+    <span style="font-size: 13px; font-weight: 700; background: rgba(20,16,12,0.72); border-radius: 10px; padding: 6px 10px">裂痕 1/3</span>
+  </div>
+  <div style="position: absolute; right: 16px; top: 14px; display: flex; gap: 8px">
+    <button aria-label="語音：開麥克風" style="width: 44px; height: 44px; border-radius: 50%; border: none; background: rgba(20,16,12,0.72); display: flex; align-items: center; justify-content: center; cursor: pointer">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+    </button>
+    <button aria-label="選單" style="width: 44px; height: 44px; border-radius: 50%; border: none; background: rgba(20,16,12,0.72); display: flex; align-items: center; justify-content: center; cursor: pointer">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+    </button>
+  </div>
+
+  <div style="position: absolute; left: 36px; bottom: 30px; width: 128px; height: 128px; border-radius: 50%; background: rgba(255,255,255,0.14); border: 2px solid rgba(255,255,255,0.35); box-sizing: border-box; display: flex; align-items: center; justify-content: center">
+    <div style="width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.75); transform: translate(10px, -14px)"></div>
+  </div>
+  <span style="position: absolute; left: 66px; bottom: 8px; font-size: 12px; color: #FFF6E4">左手：移動</span>
+
+  <div style="position: absolute; right: 200px; top: 120px; width: 150px; height: 150px; border-radius: 24px; border: 2px dashed rgba(255,255,255,0.35); box-sizing: border-box; display: flex; align-items: center; justify-content: center; font-size: 12px; color: #FFF6E4; text-align: center; line-height: 1.6">右半邊滑動<br>轉頭看</div>
+
+  <div style="position: absolute; left: 50%; top: 190px; transform: translateX(-50%); background: rgba(20,16,12,0.8); border-radius: 999px; padding: 6px 14px; font-size: 14px; font-weight: 500">掛曆・可以拿起來</div>
+
+  <div style="position: absolute; right: 24px; bottom: 26px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px">
+    <button style="font-family: inherit; width: 96px; height: 96px; border-radius: 50%; border: none; background: #F2B84B; color: #2A1E16; font-size: 18px; font-weight: 900; cursor: pointer">拿起</button>
+  </div>
+  <div style="position: absolute; right: 136px; bottom: 26px; display: flex; gap: 8px">
+    <button aria-label="物品欄" style="width: 56px; height: 56px; border-radius: 16px; border: none; background: rgba(20,16,12,0.72); display: flex; align-items: center; justify-content: center; cursor: pointer">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16v12H4zM9 8V5h6v3"/></svg>
+    </button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":844,"height":390}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

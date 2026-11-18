@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>隔代房間 大廳</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&amp;family=Space+Grotesk:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#2A1E16}a:hover{color:#000000}
+</style>
+</helmet>
+<div style="width: 1280px; height: 720px; position: relative; overflow: hidden; font-family: 'Noto Sans TC', sans-serif; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr))">
+  <div style="background: #E2B877; color: #2A1E16; padding: 140px 64px 140px 64px; display: flex; flex-direction: column; gap: 20px">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <span style="font-family: 'Space Grotesk', sans-serif; font-size: 72px; font-weight: 700; line-height: 1">1990</span>
+      <span style="font-size: 20px; font-weight: 700">過去組</span>
+    </div>
+    <p style="margin: 0; font-size: 16px; line-height: 1.7; max-width: 420px">你做的每件事都會留到未來：搬東西、藏東西、種樹、刻字。</p>
+    <div style="display: flex; flex-direction: column; gap: 12px; max-width: 440px">
+      <div style="display: flex; align-items: center; gap: 14px; background: #FFF6E4; border-radius: 16px; padding: 12px 16px">
+        <div style="width: 44px; height: 44px; border-radius: 50%; background: #E07A4F"></div>
+        <span style="flex: 1; font-size: 17px; font-weight: 700">小傑（你）</span>
+        <span style="font-size: 14px; font-weight: 700; color: #2F6B3F">準備好了</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px; background: #FFF6E4; border-radius: 16px; padding: 12px 16px">
+        <div style="width: 44px; height: 44px; border-radius: 50%; background: #B5604A"></div>
+        <span style="flex: 1; font-size: 17px; font-weight: 700">阿凱</span>
+        <span style="font-size: 14px; color: #6B5240">等待中</span>
+      </div>
+    </div>
+    <button style="align-self: flex-start; font-family: inherit; font-size: 16px; font-weight: 700; min-height: 48px; padding: 0 22px; border-radius: 999px; border: 2px solid #2A1E16; background: transparent; color: #2A1E16; cursor: pointer">換到 2030</button>
+  </div>
+  <div style="background: #10212B; color: #FFFFFF; padding: 140px 64px 140px 64px; display: flex; flex-direction: column; gap: 20px">
+    <div style="display: flex; align-items: baseline; gap: 14px">
+      <span style="font-family: 'Space Grotesk', sans-serif; font-size: 72px; font-weight: 700; line-height: 1; color: #5CC8D0">2030</span>
+      <span style="font-size: 20px; font-weight: 700">未來組</span>
+    </div>
+    <p style="margin: 0; font-size: 16px; line-height: 1.7; max-width: 420px; color: #CFE3E6">你看得到結果和線索，要用語音告訴過去組該怎麼做。</p>
+    <div style="display: flex; flex-direction: column; gap: 12px; max-width: 440px">
+      <div style="display: flex; align-items: center; gap: 14px; background: #1A3542; border-radius: 16px; padding: 12px 16px">
+        <div style="width: 44px; height: 44px; border-radius: 50%; background: #4E8FA0"></div>
+        <span style="flex: 1; font-size: 17px; font-weight: 700">小雨</span>
+        <span style="font-size: 14px; font-weight: 700; color: #8FE0B0">準備好了</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px; border: 2px dashed #3A5A64; border-radius: 16px; padding: 12px 16px">
+        <div style="width: 44px; height: 44px; border-radius: 50%; border: 2px dashed #3A5A64; box-sizing: border-box"></div>
+        <span style="flex: 1; font-size: 17px; color: #9FB7BD">空位，邀請朋友加入</span>
+      </div>
+    </div>
+    <button style="align-self: flex-start; font-family: inherit; font-size: 16px; font-weight: 700; min-height: 48px; padding: 0 22px; border-radius: 999px; border: 2px solid #5CC8D0; background: transparent; color: #5CC8D0; cursor: pointer">加入 2030</button>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; top: 36px; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: none">
+    <span style="font-size: 40px; font-weight: 900; letter-spacing: 0.08em; color: #FFFFFF; background: #2A1E16; padding: 6px 22px; border-radius: 12px">隔代房間</span>
+  </div>
+
+  <div style="position: absolute; left: 50%; bottom: 36px; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; background: #FFFFFF; border-radius: 24px; padding: 12px 12px 12px 22px; box-shadow: 0 10px 30px rgba(0,0,0,0.25)">
+    <div style="display: flex; flex-direction: column">
+      <span style="font-size: 12px; color: #5B5B5B">關卡</span>
+      <span style="font-size: 17px; font-weight: 700; color: #1A1A1A">第一關・阿嬤的客廳</span>
+    </div>
+    <div style="width: 1px; height: 36px; background: #DDDDDD"></div>
+    <span style="font-size: 14px; color: #5B5B5B">3 / 4 人</span>
+    <button style="font-family: inherit; font-size: 17px; font-weight: 700; min-height: 52px; padding: 0 30px; border-radius: 999px; border: none; background: #1A1A1A; color: #FFFFFF; cursor: pointer">開始</button>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":720}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>
