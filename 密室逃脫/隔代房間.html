@@ -279,7 +279,7 @@ const ME = { id: '1990', name: '我', era: '1990', color: '#E07A4F' };
 const pos = { x: 0, z: 2.3, yaw: 0, pitch: 0 };
 const soloPos = { 1990: { x: 0, z: 2.3, yaw: 0, pitch: 0 }, 2030: { x: 0, z: 2.3, yaw: 0, pitch: 0 } };
 let hits = [], solids = [];
-const ITEM_NAMES = { sd: '螺絲起子', tin: '餅乾鐵盒', pot: '小樹苗盆栽', key: '亮亮的鑰匙', rr: '除鏽劑', rr2030: '除鏽劑（2030）', coin: '一把零錢', rope: '麻繩', cap: '時光膠囊鐵罐', bucket: '水桶', rope2030: '麻繩（2030，還很牢）', handle: '拉桿把手', neg: '一條舊底片', paint: '紅油漆桶', oil: '機油罐', crank: '捲門搖把', hammer: '大鐵鎚', crank2030: '捲門搖把（2030，銅的）', fuse0: '紅色保險絲', fuse1: '藍色保險絲', fuse2: '綠色保險絲', fuse3: '黃色保險絲' };
+const ITEM_NAMES = { b1: '1號藥瓶', b2: '2號藥瓶', b3: '3號藥瓶', negA: '底片 A', negB: '底片 B', sd: '螺絲起子', tin: '餅乾鐵盒', pot: '小樹苗盆栽', key: '亮亮的鑰匙', rr: '除鏽劑', rr2030: '除鏽劑（2030）', coin: '一把零錢', rope: '麻繩', cap: '時光膠囊鐵罐', bucket: '水桶', rope2030: '麻繩（2030，還很牢）', handle: '拉桿把手', neg: '一條舊底片', paint: '紅油漆桶', oil: '機油罐', crank: '捲門搖把', hammer: '大鐵鎚', crank2030: '捲門搖把（2030，銅的）', fuse0: '紅色保險絲', fuse1: '藍色保險絲', fuse2: '綠色保險絲', fuse3: '黃色保險絲' };
 const COLORS = ['#E07A4F', '#4E8FA0', '#B5604A', '#3F6E8C', '#8C6BB0', '#5E9A4E'];
 const held = () => S.held[S.who] || null;
 const setHeld = (v) => { S.held[S.who] = v; };
@@ -364,6 +364,8 @@ function crack(text) {
 // =====================================================================
 const deep = () => S.diff !== 'easy'; // 普通、困難才有的額外謎題步驟
 const PEG_NAMES = ['左', '中', '右'];
+const KIND_NAMES = { rr: '除鏽劑', alc: '酒精', water: '蒸餾水' };
+const heldBottle = () => { const m = /^b(\d)$/.exec(held() || ''); return m ? +m[1] : 0; };
 const LEVEL1 = {
   name: '第一關・阿嬤的客廳',
   init() {
@@ -519,8 +521,17 @@ const LEVEL1 = {
 // =====================================================================
 const LEVEL2 = {
   name: '第二關・理化教室',
-  init() { S.f = { rr: 'shelf', cabUnlocked: false, desk: 'center', gotRr: false }; },
-  reset(it) { if (it === 'rr') S.f.rr = 'shelf'; },
+  init() {
+    // 普通／困難：架上三瓶標籤糊掉的藥瓶，只有一瓶是除鏽劑（每局隨機）；2030 的藥品清冊查得到編號。簡單只有一瓶。
+    const kinds = deep() ? shuffle(['rr', 'alc', 'water']) : ['rr'];
+    const bottles = {}, k = {};
+    kinds.forEach((kind, i) => { bottles[i + 1] = 'shelf'; k[i + 1] = kind; });
+    S.f = { bottles, kinds: k, cab: null, got: null, spent: {}, cabUnlocked: false, desk: 'center', gotRr: false };
+  },
+  reset(it) {
+    const m = /^b(\d)$/.exec(it || '');
+    if (m) { S.f.bottles[m[1]] = 'shelf'; if (S.f.cab === +m[1]) S.f.cab = null; }
+  },
   goal(era) {
     return era === '1990'
       ? '你在 1990 的理化教室。<br>・密封櫃是老師設的密碼，你不知道<br>・講桌好像推得動<br>・東西沒密封好，放幾十年會乾掉'
@@ -540,24 +551,38 @@ const LEVEL2 = {
         act: () => { f.desk = f.desk === 'center' ? 'window' : 'center'; msg(f.desk === 'window' ? '嘿咻——講桌推到窗邊了。地板上露出一塊活板門。' : '講桌推回中間。'); },
       });
       if (f.desk === 'window') add(box(0.9, 0.02, 0.9, '#5E3E26', 0, 0, -1.4), { id: 'trap', label: () => '活板門', act: () => msg('活板門被木條釘死了，現在打不開。也許未來的人有辦法。') });
-      const shelf = group(box(0.4, 1.6, 1.2, '#7A5032', -3.75, 0, -1.2), box(0.42, 0.04, 1.2, '#5E3E26', -3.75, 1.0, -1.2));
-      if (f.rr === 'shelf') shelf.add(cyl(0.07, 0.07, 0.22, '#7A3E1E', -3.7, 1.04, -1.2, 10));
-      add(shelf, {
+      add(group(box(0.4, 1.6, 1.2, '#7A5032', -3.75, 0, -1.2), box(0.42, 0.04, 1.2, '#5E3E26', -3.75, 1.0, -1.2)), {
         id: 'shelf', solid: { x: -3.75, z: -1.2, hw: 0.25, hd: 0.6 },
-        label: () => (f.rr === 'shelf' && !held() ? '拿起除鏽劑' : held() === 'rr' ? '把除鏽劑放回架上' : '藥品架'),
+        label: () => (heldBottle() ? `把${ITEM_NAMES[held()]}放回架上` : '藥品架'),
         act: () => {
-          if (f.rr === 'shelf' && !held()) { f.rr = 'hand'; setHeld('rr'); return msg('拿到一瓶除鏽劑。標籤寫著：開封後請密封保存。'); }
-          if (held() === 'rr') { f.rr = 'shelf'; setHeld(null); return msg('放回架上。'); }
-          msg('藥品架上都是空瓶子。');
+          const n = heldBottle();
+          if (n) { f.bottles[n] = 'shelf'; setHeld(null); return msg('放回架上。'); }
+          msg(Object.values(f.bottles).includes('shelf') ? '藥品架上除了這幾瓶，其他都是空瓶子。' : '藥品架上都是空瓶子。');
         },
+      });
+      Object.keys(f.bottles).forEach((n) => {
+        if (f.bottles[n] !== 'shelf') return;
+        const z = -1.2 + (Object.keys(f.bottles).length > 1 ? (n - 2) * 0.35 : 0);
+        add(cyl(0.07, 0.07, 0.22, '#7A3E1E', -3.7, 1.04, z, 10), {
+          id: 'bottle' + n, label: () => (held() ? '手上拿著東西' : deep() ? `拿起 ${n} 號藥瓶` : '拿起除鏽劑'),
+          act: () => {
+            if (held()) return msg('先把手上的東西放下。');
+            f.bottles[n] = 'hand'; setHeld('b' + n);
+            msg(deep() ? `拿起 ${n} 號藥瓶。標籤被水泡糊了，看不出裝的是什麼，只剩瓶底刻著「${n}」。\n標籤角落還看得到一行小字：開封後請密封保存。` : '拿到一瓶除鏽劑。標籤寫著：開封後請密封保存。');
+          },
+        });
       });
       add(group(box(0.9, 1.7, 0.6, '#7C858C', 3.4, 0, -2.6), box(0.12, 0.16, 0.03, f.cabUnlocked ? '#6cc08a' : '#C9473A', 3.05, 1.0, -2.28, true)), {
         id: 'scab', solid: { x: 3.4, z: -2.6, hw: 0.45, hd: 0.3 },
-        label: () => (!f.cabUnlocked ? '密封櫃（上鎖）' : held() === 'rr' ? '把除鏽劑鎖進密封櫃' : f.rr === 'cab' ? '拿出除鏽劑' : '密封櫃'),
+        label: () => (!f.cabUnlocked ? '密封櫃（上鎖）' : heldBottle() ? `把${ITEM_NAMES[held()]}鎖進密封櫃` : f.cab && !held() ? `拿出${ITEM_NAMES['b' + f.cab]}` : '密封櫃'),
         act: () => {
           if (!f.cabUnlocked) return pad('密封櫃', '老師設的四位數密碼，你不知道……也許未來的人查得到？', '3141', () => { f.cabUnlocked = true; msg('喀——密封櫃打開了。'); });
-          if (held() === 'rr') { f.rr = 'cab'; setHeld(null); return msg('把除鏽劑鎖進密封櫃，門關緊。'); }
-          if (f.rr === 'cab' && !held()) { f.rr = 'hand'; setHeld('rr'); return msg('把除鏽劑拿出來。'); }
+          const n = heldBottle();
+          if (n) {
+            if (f.cab) return msg('密封櫃很窄，只放得下一瓶。先把裡面那瓶拿出來。');
+            f.cab = n; f.bottles[n] = 'cab'; setHeld(null); return msg(`把${ITEM_NAMES['b' + n]}鎖進密封櫃，門關緊。`);
+          }
+          if (f.cab && !held()) { const m = f.cab; f.cab = null; f.bottles[m] = 'hand'; setHeld('b' + m); return msg(`把${ITEM_NAMES['b' + m]}拿出來。`); }
           msg('密封櫃裡空空的，門關起來很緊。');
         },
       });
@@ -570,17 +595,30 @@ const LEVEL2 = {
       });
       if (f.desk === 'window') add(group(box(0.9, 0.02, 0.9, '#4E5A60', 0, 0, -1.4), box(0.16, 0.12, 0.06, '#8E5A3A', 0, 0.02, -1.0)), {
         id: 'trap', label: () => (held() === 'rr2030' ? '對鎖頭倒除鏽劑' : '地下室活板門'),
-        act: () => (held() === 'rr2030' ? finish(true, '倒上除鏽劑，鎖頭鬆開了！你們從活板門逃到地下室，成功離開理化教室。') : msg('活板門上的鎖頭鏽死了，扳不動。需要什麼東西把鏽弄掉。')),
+        act: () => {
+          if (held() !== 'rr2030') return msg('活板門上的鎖頭鏽死了，扳不動。需要什麼東西把鏽弄掉。');
+          const kind = f.kinds[f.got];
+          if (kind === 'rr') return finish(true, '倒上除鏽劑，鎖頭鬆開了！你們從活板門逃到地下室，成功離開理化教室。');
+          f.spent[f.got] = true; f.got = null; setHeld(null);
+          crack(`倒下去……聞起來是${KIND_NAMES[kind]}，鎖頭一點變化都沒有，瓶子也空了——時間裂痕！\n當年收進密封櫃的，好像不是除鏽劑。`);
+        },
       });
+      const leftOnShelf = Object.keys(f.bottles).filter((n) => f.bottles[n] === 'shelf' || f.bottles[n] === 'hand').length;
       add(box(0.4, 1.6, 1.2, '#8E9AA0', -3.75, 0, -1.2), {
         id: 'shelf', solid: { x: -3.75, z: -1.2, hw: 0.25, hd: 0.6 }, label: () => '舊藥品架',
-        act: () => msg(f.rr === 'shelf' || f.rr === 'hand' ? '架上有一個乾掉的空瓶，標籤寫著「除鏽劑」。沒密封，早就揮發光了。' : '架上什麼都沒有。'),
+        act: () => msg(!leftOnShelf ? '架上什麼都沒有。' : deep() ? `架上有${leftOnShelf}個乾掉的空瓶，標籤早就爛光了，只看得到瓶底的編號。沒密封的東西，早就揮發光了。` : '架上有一個乾掉的空瓶，標籤寫著「除鏽劑」。沒密封，早就揮發光了。'),
       });
       add(group(box(0.9, 1.7, 0.6, '#5B6670', 3.4, 0, -2.6), box(0.4, 0.22, 0.02, '#F4F1E6', 3.4, 1.25, -2.28)), {
         id: 'scab', solid: { x: 3.4, z: -2.6, hw: 0.45, hd: 0.3 }, label: () => '舊密封櫃',
         act: () => {
-          if (f.rr === 'cab' && !f.gotRr) { f.gotRr = true; setHeld('rr2030'); return msg('櫃門早就壞了。裡面有一瓶除鏽劑——密封得很好，還能用！'); }
-          note('密封櫃上的資產清冊標籤', '學校財產編號 1990-0427\n品名：密封櫃\n原設定密碼：3141\n\n（櫃子裡' + (f.gotRr ? '已經空了）' : '空空的）'));
+          const n = f.cab;
+          if (n && f.spent[n]) return msg(`櫃子裡只剩一個空瓶，瓶底刻著「${n}」。`);
+          if (n && f.got !== n && !held()) {
+            f.got = n; f.gotRr = true; setHeld('rr2030');
+            return msg(deep() ? `櫃門早就壞了。裡面有一瓶密封得很好的藥瓶，瓶底刻著「${n}」，標籤看不清楚。` : '櫃門早就壞了。裡面有一瓶除鏽劑——密封得很好，還能用！');
+          }
+          const list = deep() ? '\n\n標籤旁邊還釘著一張泛黃的「1990 年理化教室藥品清冊」：\n' + Object.keys(f.kinds).map((k) => `　${k} 號瓶：${KIND_NAMES[f.kinds[k]]}`).join('\n') : '';
+          note('密封櫃上的資產清冊標籤', '學校財產編號 1990-0427\n品名：密封櫃\n原設定密碼：3141' + list + '\n\n（櫃子裡' + (f.got ? '已經空了）' : '空空的）'));
         },
       });
       add(box(1, 2.1, 0.06, '#33454D', 2.8, 0, 2.96), { id: 'door', label: () => '教室門', act: () => msg('電子鎖斷電了，門完全打不開。得找別的路出去。') });
@@ -959,9 +997,12 @@ LEVEL1.hint = () => {
 LEVEL2.hint = () => {
   const f = S.f;
   if (!f.cabUnlocked) return '1990 的密封櫃密碼，寫在 2030 那個舊密封櫃的資產清冊標籤上。';
-  if (f.rr !== 'cab' && !f.gotRr) return '除鏽劑沒密封會揮發。1990 從藥品架拿除鏽劑，鎖進密封櫃。';
+  const right = Object.keys(f.kinds).find((k) => f.kinds[k] === 'rr');
+  if (f.cab !== +right && f.got !== +right) return deep()
+    ? '架上的藥瓶標籤都糊掉了。2030 舊密封櫃旁釘著 1990 年的藥品清冊，查出除鏽劑是幾號瓶，告訴 1990；1990 把那一瓶鎖進密封櫃。'
+    : '除鏽劑沒密封會揮發。1990 從藥品架拿除鏽劑，鎖進密封櫃。';
   if (f.desk !== 'window') return '1990 的講桌壓著地下室的活板門。把講桌推到窗邊。';
-  if (!f.gotRr) return '2030 打開舊密封櫃，裡面有當年保存好的除鏽劑。';
+  if (f.got !== +right) return '2030 打開舊密封櫃，裡面有當年保存好的除鏽劑。';
   return '2030 拿除鏽劑去活板門，對生鏽的鎖頭倒下去！';
 };
 LEVEL3.hint = () => {
