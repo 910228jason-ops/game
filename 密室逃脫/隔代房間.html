@@ -49,6 +49,10 @@
   textarea { height: 76px; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 12px; word-break: break-all; }
   label { font-size: 13px; font-weight: 700; display: block; margin-top: 10px; }
   .status { font-size: 14px; color: #5b4a36; }
+  .roomCode { font-size: 40px; font-weight: 900; letter-spacing: 8px; font-family: ui-monospace, Consolas, monospace; background: #1b1712; color: var(--amber); border-radius: 14px; padding: 4px 18px; display: inline-block; min-width: 150px; text-align: center; }
+  input.codeIn { font-size: 26px; font-weight: 900; letter-spacing: 6px; text-transform: uppercase; text-align: center; font-family: ui-monospace, Consolas, monospace; max-width: 220px; }
+  details.old { margin-top: 14px; border-top: 1px dashed #cfc6b4; padding-top: 8px; }
+  details.old summary { cursor: pointer; font-size: 14px; font-weight: 700; color: #5b4a36; }
   .plist { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
   .plist div { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 10px; padding: 6px 10px; font-size: 15px; }
   .tag { font-size: 12px; font-weight: 900; border-radius: 6px; padding: 1px 6px; color: #1b1712; }
@@ -140,7 +144,7 @@
     <button class="ghost" id="btnLook">捏角色</button>
     <button class="ghost" id="btnTouch">操作：鍵盤滑鼠</button>
   </div>
-  <p style="font-size:13px;opacity:.75;margin-top:12px">多人連線不需要伺服器：房主產生「邀請碼」貼給朋友，朋友貼回「回覆碼」就連上了。語音請用 Discord。</p>
+  <p style="font-size:13px;opacity:.75;margin-top:12px">多人連線：房主開房後把「邀請連結」貼到 Discord，朋友點開就能加入。語音請用 Discord。</p>
 </div></div>
 
 <!-- 單機選關 -->
@@ -163,13 +167,19 @@
   <select id="hLevel"></select>
   <label>難度</label><div class="seg" id="hostDiff"></div>
   <div class="row" style="margin-top:8px"><button class="ghost" data-look>捏角色</button></div>
-  <h3>邀請朋友（每位朋友各做一次）</h3>
-  <div class="row" style="margin-top:0"><button id="hInvite" class="ghost">① 產生邀請碼</button><span class="status" id="hInviteStatus"></span></div>
+  <h3>邀請朋友</h3>
+  <div class="row" style="margin-top:0"><span class="roomCode" id="hRoomCode">····</span><span class="status" id="hRoomStatus">準備房間碼中…</span></div>
+  <div class="row" style="margin-top:8px"><button id="hCopyLink">複製邀請連結</button><button class="ghost" id="hCopyCode">只複製房間碼</button></div>
+  <p class="status" style="margin:6px 0 0">把邀請連結貼到 Discord，朋友點開就會進到加入畫面；也可以直接告訴他們房間碼。人數不限，同一個連結大家共用。</p>
+  <details class="old" id="hOld"><summary>連不上？改用連線碼（舊方法，每位朋友各做一次）</summary>
+  <div class="row"><button id="hInvite" class="ghost">① 產生邀請碼</button><span class="status" id="hInviteStatus"></span></div>
   <textarea id="hInviteCode" readonly placeholder="按①之後，這裡會出現邀請碼。複製貼給朋友。"></textarea>
   <div class="row" style="margin-top:6px"><button class="ghost" id="hCopy">複製邀請碼</button></div>
   <label>② 貼上朋友傳回來的回覆碼</label>
   <textarea id="hAnswer" placeholder="朋友貼上邀請碼後會得到一串回覆碼"></textarea>
-  <div class="row" style="margin-top:6px"><button id="hConnect" class="ghost">連線</button><span class="status" id="hStatus"></span></div>
+  <div class="row" style="margin-top:6px"><button id="hConnect" class="ghost">連線</button></div>
+  </details>
+  <p class="status" id="hStatus" style="margin:8px 0 0"></p>
   <h3>房間裡的人</h3><div class="plist" id="hPlayers"></div>
   <div class="row"><button id="hStart">開始遊戲</button><button class="ghost" data-back>返回</button></div>
 </div></div>
@@ -180,11 +190,16 @@
   <label>你的名字</label><input id="jName" maxlength="10" value="玩家">
   <label>你要在哪個年代</label>
   <div class="row" style="margin-top:4px"><button data-era="1990" class="ghost">1990 過去</button><button data-era="2030" class="sel t2030">2030 未來</button></div>
+  <label>房間碼（房主畫面上的 4 個字）</label>
+  <div class="row" style="margin-top:4px"><input id="jRoom" class="codeIn" maxlength="4" autocomplete="off" spellcheck="false" placeholder="ABCD"><button id="jGo">加入</button></div>
+  <details class="old" id="jOld"><summary>連不上？改用連線碼（舊方法）</summary>
   <label>① 貼上房主給你的邀請碼</label>
   <textarea id="jInvite" placeholder="貼在這裡"></textarea>
   <div class="row" style="margin-top:6px"><button id="jMake" class="ghost">② 產生回覆碼</button><span class="status" id="jMakeStatus"></span></div>
   <textarea id="jAnswer" readonly placeholder="回覆碼會出現在這裡，複製貼回給房主"></textarea>
-  <div class="row" style="margin-top:6px"><button class="ghost" id="jCopy">複製回覆碼</button><span class="status" id="jStatus"></span></div>
+  <div class="row" style="margin-top:6px"><button class="ghost" id="jCopy">複製回覆碼</button></div>
+  </details>
+  <p class="status" id="jStatus" style="margin:8px 0 0"></p>
   <h3>房間裡的人</h3><div class="plist" id="jPlayers"></div>
   <div class="row"><button class="ghost" data-look>捏角色</button><button class="ghost" data-back>返回</button></div>
 </div></div>
@@ -347,9 +362,15 @@ function crack(text) {
 // =====================================================================
 // 第一關：阿嬤的客廳
 // =====================================================================
+const deep = () => S.diff !== 'easy'; // 普通、困難才有的額外謎題步驟
+const PEG_NAMES = ['左', '中', '右'];
 const LEVEL1 = {
   name: '第一關・阿嬤的客廳',
-  init() { S.f = { sd: 'toolbox', tin: 'table', sdInTin: false, cab: { tin: false, sd: false }, pot: 'corner', potWasSun: false, cabUnlocked: false, gotSd: false, ventOpen: false }; },
+  init() {
+    // 普通／困難：1990 的木櫃夾層卡住，要照 2030 夾層內側刻的順序按三根木釘才打得開（順序每局隨機）
+    S.f = { sd: 'toolbox', tin: 'table', sdInTin: false, cab: { tin: false, sd: false }, pot: 'corner', potWasSun: false, cabUnlocked: false, gotSd: false, ventOpen: false,
+      drawerOpen: !deep(), pegOrder: shuffle([0, 1, 2]), pegs: [] };
+  },
   reset(it) {
     const f = S.f;
     if (it === 'sd') f.sd = 'toolbox';
@@ -373,6 +394,22 @@ const LEVEL1 = {
       label: () => (old ? (held() ? `把${ITEM_NAMES[held()]}收進木櫃` : '打開木櫃') : (f.cabUnlocked ? '打開木櫃' : '木櫃的密碼鎖')),
       act: () => (old ? cabinet1990() : cabinet2030()),
     });
+    if (old && !f.drawerOpen) {
+      // 木櫃正面的三根木釘（左、中、右）
+      PEG_NAMES.forEach((nm, i) => {
+        add(cyl(0.035, 0.035, 0.06, '#C8A46A', -2.5 + i * 0.5, 0.72, -2.34, 8), {
+          id: 'peg' + i, label: () => `按${nm}邊的木釘`,
+          act: () => {
+            f.pegs.push(i);
+            const n = f.pegs.length;
+            if (f.pegOrder[n - 1] !== i) { f.pegs = []; return crack('木釘喀一聲卡死又彈回來，整個木櫃晃了一下——時間裂痕！\n（按的順序不對。也許有人知道正確的順序？）'); }
+            if (n < 3) return msg(`按下${nm}邊的木釘，裡面傳出喀的一聲。`);
+            f.drawerOpen = true; f.pegs = [];
+            msg('三根木釘都按下去了——喀啦！木櫃的夾層彈開了。');
+          },
+        });
+      });
+    }
     if (old) {
       add(group(box(0.5, 0.62, 0.02, '#F4ECDD', 0.8, 1.3, -2.94), box(0.5, 0.14, 0.03, '#C9473A', 0.8, 1.78, -2.94)), {
         id: 'cal', label: () => '看掛曆', act: () => note('1990 年 8 月的掛曆', '17 日被紅筆圈了起來，旁邊寫著：\n「阿嬤生日」'),
@@ -419,6 +456,13 @@ const LEVEL1 = {
       add(box(1, 2.1, 0.06, '#7A4A2A', -2.5, 0, 2.96), { id: 'door', label: () => '大門', act: () => msg('外面是 1990 年的街道。你的任務是幫 2030 的隊友逃出去。') });
     } else {
       add(box(0.5, 0.62, 0.02, '#D6DFE1', 0.8, 1.3, -2.94), { id: 'mark', label: () => '牆上的印子', act: () => msg('牆上有一塊沒被曬褪色的方形印子，以前這裡掛過什麼東西。') });
+      // 1990 的小邊桌沒有留到 2030：在原位留下地板上的桌腳印，讓玩家知道東西去哪了
+      add(group(box(0.06, 0.004, 0.06, '#6F7A7E', 2.65, 0.001, -2.8), box(0.06, 0.004, 0.06, '#6F7A7E', 3.15, 0.001, -2.8), box(0.06, 0.004, 0.06, '#6F7A7E', 2.65, 0.001, -2.4), box(0.06, 0.004, 0.06, '#6F7A7E', 3.15, 0.001, -2.4), box(0.6, 0.002, 0.5, '#B9C3C6', 2.9, 0.0005, -2.6)), {
+        id: 'tableMark', label: () => '地上的桌腳印',
+        act: () => msg(f.tin === 'table'
+          ? '這裡以前擺著一張小邊桌。桌子連同桌上的鐵盒，早就被當成垃圾清掉了。'
+          : '這裡以前擺著一張小邊桌，早就被清掉了。'),
+      });
       add(box(0.5, 0.25, 0.3, '#7B5A48', -3.3, 0, -1.4), { id: 'toolbox', solid: { x: -3.3, z: -1.4, hw: 0.28, hd: 0.2 }, label: () => '生鏽的工具箱', act: () => msg('工具箱鏽穿了，裡面什麼都沒有。') });
       const treeOk = f.pot === 'sun';
       if (treeOk) {
@@ -439,6 +483,7 @@ const LEVEL1 = {
     }
     function cabinet1990() {
       const h = held(), c = f.cab;
+      if (!f.drawerOpen) return msg(h ? '木櫃裡有個夾層，可是卡得死死的，東西放不進去。\n櫃子正面有三根木釘，好像是什麼機關。' : '木櫃裡有個夾層，可是卡得死死的。櫃子正面有三根木釘。');
       if (h === 'tin') { c.tin = true; f.tin = 'cab'; setHeld(null); return msg(f.sdInTin ? '把裝著螺絲起子的鐵盒收進木櫃夾層。' : '把空鐵盒收進木櫃。'); }
       if (h === 'sd') {
         setHeld(null);
@@ -453,6 +498,7 @@ const LEVEL1 = {
     function cabinet2030() {
       if (!f.cabUnlocked) return pad('木櫃的密碼鎖', '鎖上貼著一張便條：「阿嬤的生日」（四位數：月月日日）', '0817', () => { f.cabUnlocked = true; msg('嗶——密碼鎖打開了！'); });
       const c = f.cab;
+      if (!f.drawerOpen) return note('木櫃夾層的內側', `夾層的木板內側，有阿嬤用小刀刻的字：\n「夾層卡住的話，依序按 ${f.pegOrder.map((i) => PEG_NAMES[i]).join('、')} 三根木釘。」\n\n（夾層裡空空的。）`);
       if (c.tin && f.sdInTin && !f.gotSd) { f.gotSd = true; setHeld('sd'); return msg('夾層裡有個生鏽的餅乾鐵盒。打開——螺絲起子保存得像新的一樣！'); }
       if (f.gotSd) return msg('夾層已經空了。');
       if (c.sd) return msg('夾層裡有一支鏽成一團的螺絲起子，完全轉不動。\n要是當年有好好密封就好了……');
@@ -574,7 +620,9 @@ const LEVEL3 = {
         return held() === 'cap' ? '把膠囊放回櫃台' : '櫃台';
       },
       act: () => {
-        if (!old) return msg('櫃台上的灰塵有一指厚。收銀機早就不見了。');
+        if (!old) return msg(f.cap === 'counter'
+          ? '櫃台上的灰塵有一指厚，收銀機早就不見了。\n灰塵裡有一圈圓形的鏽印，以前好像擺過一個鐵罐，也早就被清掉了。'
+          : '櫃台上的灰塵有一指厚。收銀機早就不見了。');
         const h = held();
         if (f.cap === 'counter' && h === 'rope') { f.rope = 'cap'; setHeld(null); return msg('把麻繩捲好塞進時光膠囊，蓋子旋緊，密封得很好。'); }
         if (f.cap === 'counter' && !h) { f.cap = 'hand'; setHeld('cap'); return msg(f.rope === 'cap' ? '拿起時光膠囊（裡面裝著麻繩）。' : '一個空的時光膠囊鐵罐，蓋子是旋緊式的。'); }
@@ -846,7 +894,9 @@ const LEVEL5 = {
       id: 'safe', solid: { x: -3.6, z: 1.6, hw: 0.3, hd: 0.25 },
       label: () => (!old ? '鏽開的保險箱' : !f.safeOpen ? '老闆的保險箱（上鎖）' : f.neg === 'safe' && !held() ? '拿出底片' : held() === 'neg' ? '把底片放回保險箱' : '保險箱'),
       act: () => {
-        if (!old) return msg('保險箱的門鏽開了，裡面空空的。');
+        if (!old) return msg(f.neg === 'safe'
+          ? '保險箱的門鏽開了。裡面有一條底片，泡過雨水又沾滿鏽，黏成一團，什麼都看不出來。'
+          : '保險箱的門鏽開了，裡面空空的。');
         if (!f.safeOpen) return pad('老闆的保險箱', '四位數密碼，你不知道……也許未來的人找得到線索？', '1968', () => { f.safeOpen = true; msg('喀——保險箱打開了！'); });
         if (f.neg === 'safe' && !held()) { f.neg = 'hand'; setHeld('neg'); return msg('拿到一條舊底片，黑黑的看不清楚。暗房在用，現在沒辦法沖洗。\n底片很怕熱、也怕潮濕。'); }
         if (held() === 'neg') { f.neg = 'safe'; setHeld(null); return msg('底片放回保險箱。（保險箱放幾十年會鏽開喔）'); }
@@ -898,6 +948,8 @@ const LEVEL5 = {
 LEVEL1.hint = () => {
   const f = S.f;
   if (f.pot !== 'sun') return '1990 的小樹苗在暗暗的角落。樹要曬太陽才長得大——把它搬到窗邊的陽光下。';
+  if (!f.drawerOpen && !f.cabUnlocked) return '1990 的木櫃夾層卡住了。2030 先打開自己的木櫃（密碼是「阿嬤的生日」，1990 的牆上有掛曆），夾層裡也許有線索。';
+  if (!f.drawerOpen) return '2030 木櫃夾層內側刻著木釘的順序。唸給 1990 聽，1990 照順序按木櫃正面的三根木釘。';
   if (!(f.cab.tin && f.sdInTin)) return '螺絲起子放幾十年會生鏽。1990 先把螺絲起子放進餅乾鐵盒，再把鐵盒收進木櫃。';
   if (!f.cabUnlocked) return '2030 的木櫃密碼是「阿嬤的生日」。1990 的牆上有一本掛曆。';
   if (!f.gotSd && !f.ventOpen) return '2030 打開木櫃，拿出鐵盒裡的螺絲起子。';
@@ -1535,7 +1587,7 @@ const LEVELS = { 1: LEVEL1, 2: LEVEL2, 3: LEVEL3, 4: LEVEL4, 5: LEVEL5, 6: LEVEL
 //  之後要放進 Discord 活動時，只要換掉這一塊 (Net)。
 // =====================================================================
 const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-const Net = { role: null, peers: new Map(), pending: null, seq: 0, players: [] };
+const Net = { role: null, peers: new Map(), pending: null, seq: 0, players: [], room: null };
 
 async function encode(obj) {
   const s = new Blob([JSON.stringify(obj)]).stream().pipeThrough(new CompressionStream('deflate-raw'));
@@ -1594,6 +1646,98 @@ async function guestJoin(code) {
   return encode({ sdp: pc.localDescription });
 }
 
+// ---- 房間碼（PeerJS 公開配對服務）----
+//  房主用「kdroom-房間碼」這個名字登記在 PeerJS 的免費公開伺服器上，朋友用房間碼找到房主。
+//  配對服務只負責牽線；連上之後資料一樣是玩家之間直接傳（WebRTC），不經過任何伺服器。
+//  服務掛掉時，上面的「複製貼上連線碼」仍然可以用。
+const ROOM_PREFIX = 'kdroom-';
+const ROOM_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'; // 拿掉 0 O 1 I L，避免看錯
+let PeerLib = null;
+async function loadPeer() {
+  if (!PeerLib) PeerLib = (await import('https://cdn.jsdelivr.net/npm/peerjs@1.5.4/+esm')).Peer;
+  return PeerLib;
+}
+function newRoomCode() { let s = ''; for (let i = 0; i < 4; i++) s += ROOM_CHARS[Math.floor(Math.random() * ROOM_CHARS.length)]; return s; }
+function cleanRoomCode(s) { return String(s || '').toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 4); }
+function roomLink(code) { return location.origin + location.pathname + '#room=' + code; }
+// 把 PeerJS 的連線包成跟 RTCDataChannel 一樣的介面，send() / broadcast() 不用改
+function connAdapter(conn) { return { get readyState() { return conn.open ? 'open' : 'closed'; }, send: (s) => conn.send(s), close: () => conn.close() }; }
+function wireConn(id, conn, onReady) {
+  conn.on('data', (d) => { try { onNet(id, typeof d === 'string' ? JSON.parse(d) : d); } catch (err) { console.error(err); } });
+  conn.on('close', () => { if (Net.peers.has(id)) onClose(id); });
+  conn.on('error', (e) => console.warn('連線錯誤', e));
+  if (conn.open) onReady(); else conn.on('open', onReady);
+}
+function peerErrorText(e) {
+  const t = e && e.type;
+  if (t === 'peer-unavailable') return '找不到這個房間碼。請確認 4 個字有沒有打錯，以及房主的開房畫面還開著。';
+  if (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') return '配對服務暫時連不上。請改用下方「連線碼（舊方法）」。';
+  if (t === 'browser-incompatible') return '這個瀏覽器不支援連線，請換 Chrome 或 Edge。';
+  return '連線失敗（' + (t || (e && e.message) || '未知') + '）。可以改用下方「連線碼（舊方法）」。';
+}
+
+async function hostOpenRoom() {
+  if (Net.room) return;
+  Net.room = { code: null, peer: null };
+  $('hRoomStatus').textContent = '準備房間碼中…';
+  let Peer;
+  try { Peer = await loadPeer(); }
+  catch (e) { Net.room = null; $('hRoomStatus').textContent = '房間碼功能載入失敗，請改用下方的連線碼。'; $('hOld').open = true; return; }
+  for (let tries = 0; tries < 5; tries++) {
+    const code = newRoomCode();
+    const ok = await new Promise((res) => {
+      const peer = new Peer(ROOM_PREFIX + code);
+      const timer = setTimeout(() => { peer.destroy(); res('timeout'); }, 12000);
+      peer.on('open', () => { clearTimeout(timer); Net.room = { code, peer }; res('ok'); });
+      peer.on('error', (e) => {
+        if (Net.room && Net.room.peer === peer) { console.warn('配對服務錯誤', e); return; }
+        clearTimeout(timer); peer.destroy(); res(e.type === 'unavailable-id' ? 'taken' : 'fail');
+      });
+    });
+    if (ok === 'ok') break;
+    if (ok !== 'taken') { Net.room = null; $('hRoomStatus').textContent = '配對服務暫時連不上，請改用下方的連線碼。'; $('hOld').open = true; return; }
+  }
+  if (!Net.room || !Net.room.peer) { Net.room = null; $('hRoomStatus').textContent = '房間碼一直重複，請重新整理再試。'; return; }
+  const { code, peer } = Net.room;
+  $('hRoomCode').textContent = code;
+  $('hRoomStatus').textContent = '房間開好了，等朋友加入';
+  peer.on('connection', (conn) => {
+    const id = 'p' + (++Net.seq);
+    wireConn(id, conn, () => {
+      Net.peers.set(id, { conn, dc: connAdapter(conn) });
+      send(id, { t: 'welcome', id });
+      onOpen(id);
+    });
+  });
+  // 跟配對服務斷線（例如電腦睡眠）時自動重連，才能繼續收新朋友；已經連上的人不受影響
+  peer.on('disconnected', () => { setTimeout(() => { if (!peer.destroyed) peer.reconnect(); }, 2000); });
+}
+
+async function guestJoinRoom(raw) {
+  const code = cleanRoomCode(raw);
+  if (code.length !== 4) throw new Error('房間碼是 4 個字');
+  const Peer = await loadPeer().catch(() => { throw new Error('房間碼功能載入失敗，請改用下方的連線碼。'); });
+  if (Net.room && Net.room.peer) Net.room.peer.destroy();
+  return new Promise((resolve, reject) => {
+    const peer = new Peer();
+    Net.room = { code, peer };
+    let done = false;
+    const fail = (text) => { if (done) return; done = true; clearTimeout(timer); peer.destroy(); Net.room = null; reject(new Error(text)); };
+    const timer = setTimeout(() => fail('等太久了，可能是網路擋住了直連。可以換個網路，或改用下方「連線碼（舊方法）」。'), 20000);
+    peer.on('error', (e) => fail(peerErrorText(e)));
+    peer.on('open', () => {
+      const conn = peer.connect(ROOM_PREFIX + code, { reliable: true, serialization: 'raw' });
+      wireConn('host', conn, () => {
+        if (done) return;
+        done = true; clearTimeout(timer);
+        Net.peers.set('host', { conn, dc: connAdapter(conn) });
+        resolve();
+        // 等房主回 welcome（裡面有自己的玩家編號）才送 hello
+      });
+    });
+  });
+}
+
 function onOpen(id) {
   if (Net.role === 'guest') { send('host', { t: 'hello', name: ME.name, era: ME.era, look: ME.look }); $('jStatus').textContent = '已連線！等房主開始遊戲。'; }
   else $('hStatus').textContent = '有人連上了！';
@@ -1637,6 +1781,7 @@ function hostHandle(id, m) {
 }
 // 隊員收到的訊息
 function guestHandle(m) {
+  if (m.t === 'welcome') { ME.id = m.id; onOpen('host'); return; }
   if (m.t === 'lobby') { Net.players = m.players; renderPlayers(); }
   if (m.t === 'start') beginNetGame(m);
   if (m.t === 'state') applyState(m);
@@ -2026,6 +2171,7 @@ $('btnHost').onclick = () => {
   ME.color = ME.look.body;
   if (!Net.players.find((p) => p.id === 'p0')) Net.players.unshift({ id: 'p0', name: $('hName').value || '房主', era: ME.era, color: ME.color, look: ME.look });
   renderLevelLists(); renderPlayers(); only('host');
+  hostOpenRoom();
 };
 $('btnJoin').onclick = () => {
   if (Net.role === 'host') return toast('你已經是房主了，重新整理頁面才能加入別人。');
@@ -2072,6 +2218,31 @@ $('jMake').onclick = async () => {
   catch (e) { $('jMakeStatus').textContent = '失敗：' + e.message; $('jMake').disabled = false; }
 };
 $('jCopy').onclick = () => copyText($('jAnswer'));
+async function copyString(s) {
+  try { await navigator.clipboard.writeText(s); toast('已複製'); }
+  catch (e) { const t = document.createElement('textarea'); t.value = s; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); toast('已複製'); }
+}
+$('hCopyLink').onclick = () => { if (!Net.room || !Net.room.code) return toast('房間碼還沒準備好'); copyString(roomLink(Net.room.code)); };
+$('hCopyCode').onclick = () => { if (!Net.room || !Net.room.code) return toast('房間碼還沒準備好'); copyString(Net.room.code); };
+$('jRoom').oninput = () => { const v = cleanRoomCode($('jRoom').value); if (v !== $('jRoom').value) $('jRoom').value = v; };
+$('jRoom').onkeydown = (e) => { if (e.key === 'Enter') $('jGo').click(); };
+$('jGo').onclick = async () => {
+  if (Net.peers.has('host')) return toast('已經連上了，等房主開始遊戲。');
+  ME.name = $('jName').value || '玩家';
+  $('jStatus').textContent = '連線中…'; $('jGo').disabled = true;
+  try { await guestJoinRoom($('jRoom').value); $('jStatus').textContent = '已連上房間，等房主回應…'; }
+  catch (e) { $('jStatus').textContent = e.message; $('jGo').disabled = false; }
+};
+// 從邀請連結（…#room=ABCD）打開：直接進加入畫面並填好房間碼
+function openFromLink() {
+  const m = /room=([0-9A-Za-z]{4})/.exec(location.hash);
+  if (!m || Net.role) return;
+  $('btnJoin').onclick();
+  $('jRoom').value = cleanRoomCode(m[1]);
+  $('jStatus').textContent = '房間碼已填好。確認名字和年代後按「加入」。';
+  history.replaceState(null, '', location.pathname + location.search);
+}
+openFromLink();
 $('hStart').onclick = () => {
   const eras = new Set(Net.players.map((p) => p.era));
   if (Net.players.length < 2) return toast('至少要兩個人。只有自己的話請用單機試玩。');
@@ -2134,7 +2305,10 @@ function switchEra() {
   S.era = S.era === '1990' ? '2030' : '1990'; S.who = S.era; ME.id = S.era;
   Object.assign(pos, soloPos[S.era]);
   rebuild();
-  toast(S.level && S.level.sides ? `切換到${sideOf(S.era)[0]}。` : S.era === '1990' ? '回到 1990。' : '來到 2030——看看 1990 做的事改變了什麼。', 2200);
+  const carried = !(S.level && S.level.sides) && S.era === '2030' && S.held['1990'];
+  toast(S.level && S.level.sides ? `切換到${sideOf(S.era)[0]}。` : S.era === '1990' ? '回到 1990。'
+    : carried ? `來到 2030。1990 的你手上還拿著${ITEM_NAMES[carried]}——拿在手上的東西不會自己留到未來。`
+    : '來到 2030——看看 1990 做的事改變了什麼。', carried ? 4200 : 2200);
 }
 
 // =====================================================================
