@@ -858,7 +858,7 @@ const LEVEL4 = {
         id: 'spot' + i, label: () => (lit ? '被光照亮的牆' : '牆壁'),
         act: () => {
           if (old) return msg(lit ? '光照在牆上，壁紙上沒有什麼特別的。' : '貼著壁紙的牆。');
-          if (lit && i === 0) return note('夕陽照亮了牆上的刻字', '「守燈人日誌：\n　每天 04:15 收工下樓。」');
+          if (lit && i === 0) return note('夕陽照亮了牆上的刻字', deep() ? '「守燈人日誌：\n　每晚最後一趟巡塔走完，就收工下樓。\n　巡塔的時刻都記在值班室的桌上。」' : '「守燈人日誌：\n　每天 04:15 收工下樓。」');
           if (lit) return msg('夕陽照亮了這塊牆，上面什麼都沒有。');
           return msg(i === 0 ? '牆太暗了。湊近一看，好像刻著字，可是看不清楚……要是有光就好了。' : '很暗的牆。');
         },
@@ -903,7 +903,7 @@ const LEVEL4 = {
     add(group(cyl(0.3, 0.3, 0.7, old ? '#7A5032' : '#5E5040', 3.3, 0, -2.4, 10)), { solid: { x: 3.3, z: -2.4, hw: 0.3, hd: 0.3 } });
     if (old) {
       add(group(box(1.0, 0.75, 0.6, '#7E5133', -1.5, 0, 1.4), box(0.6, 0.02, 0.4, '#EADFC4', -1.5, 0.75, 1.4)), {
-        id: 'map', solid: { x: -1.5, z: 1.4, hw: 0.5, hd: 0.3 }, label: () => '海圖桌', act: () => msg('海圖上標著附近的暗礁。值班表寫著守燈人的名字，沒寫時間。'),
+        id: 'map', solid: { x: -1.5, z: 1.4, hw: 0.5, hd: 0.3 }, label: () => '海圖桌', act: () => (deep() ? note('海圖桌上的巡塔紀錄表', '值班：老陳\n\n　第二趟　01:00\n　第四趟　04:15\n　第一趟　21:30\n　第三趟　02:45\n\n（字跡潦草，順序是亂寫的）') : msg('海圖上標著附近的暗礁。值班表寫著守燈人的名字，沒寫時間。')),
       });
       trashBin(era, -3.5, 2.4);
     } else {
@@ -914,10 +914,16 @@ const LEVEL4 = {
 // =====================================================================
 // 第五關：老照相館 (雙向密碼、保存環境三選一、翻拍底片)
 // =====================================================================
+const heldNeg = () => (held() && S.f.negs && held() in S.f.negs ? held() : null);
+const negAt = (where) => Object.keys(S.f.negs || {}).filter((k) => S.f.negs[k] === where);
 const LEVEL5 = {
   name: '第五關・老照相館',
-  init() { S.f = { safeOpen: false, neg: 'safe', power: false, scanned: false }; },
-  reset(it) { if (it === 'neg') S.f.neg = 'safe'; },
+  init() {
+    // 普通／困難：保險箱裡有兩條底片（A、B），只有一條拍到暗房門（每局隨機）；防潮箱只放得下一條
+    const negs = deep() ? { negA: 'safe', negB: 'safe' } : { neg: 'safe' };
+    S.f = { safeOpen: false, negs, good: deep() ? (Math.random() < 0.5 ? 'negA' : 'negB') : 'neg', power: false, scanned: false };
+  },
+  reset(it) { if (it in S.f.negs) S.f.negs[it] = 'safe'; },
   goal(era) {
     return era === '1990'
       ? '你在 1990 的照相館，老闆在暗房沖照片。<br>・老闆的保險箱密碼你不知道<br>・底片很怕熱、也怕潮濕<br>・暗房現在不能開'
@@ -943,38 +949,63 @@ const LEVEL5 = {
     } else {
       add(group(box(0.6, 0.45, 0.02, '#E8E1CF', 0.1, 1.3, -2.93)), {
         id: 'clip', label: () => '看報紙剪報',
-        act: () => note('牆上的舊報紙剪報', '〈巷口照相館老闆專訪〉\n記者問保險箱放什麼，老闆笑說：\n「重要的底片啦。密碼？就是我第一台相機的型號數字。」\n\n（剪報上的相機照片糊掉了，看不出型號）'),
+        act: () => note('牆上的舊報紙剪報', '〈巷口照相館老闆專訪〉\n記者問保險箱放什麼，老闆笑說：\n「重要的底片啦。密碼？就是我第一台相機的型號數字。」'
+          + (deep() ? '\n「裡面最寶貝的一張，是我年輕時站在暗房門口拍的。」' : '') + '\n\n（剪報上的相機照片糊掉了，看不出型號）'),
       });
     }
     // 保險箱
     add(group(box(0.6, 0.7, 0.5, old ? '#3E474F' : '#5B4A3E', -3.6, 0, 1.6), box(0.1, 0.1, 0.03, old ? (f.safeOpen ? '#6cc08a' : '#C9473A') : '#3E332B', -3.28, 0.45, 1.6, old)), {
       id: 'safe', solid: { x: -3.6, z: 1.6, hw: 0.3, hd: 0.25 },
-      label: () => (!old ? '鏽開的保險箱' : !f.safeOpen ? '老闆的保險箱（上鎖）' : f.neg === 'safe' && !held() ? '拿出底片' : held() === 'neg' ? '把底片放回保險箱' : '保險箱'),
+      label: () => (!old ? '鏽開的保險箱' : !f.safeOpen ? '老闆的保險箱（上鎖）' : negAt('safe').length && !held() ? '拿出底片' : heldNeg() ? `把${ITEM_NAMES[held()]}放回保險箱` : '保險箱'),
       act: () => {
-        if (!old) return msg(f.neg === 'safe'
-          ? '保險箱的門鏽開了。裡面有一條底片，泡過雨水又沾滿鏽，黏成一團，什麼都看不出來。'
+        if (!old) return msg(negAt('safe').length
+          ? '保險箱的門鏽開了。裡面的底片泡過雨水又沾滿鏽，黏成一團，什麼都看不出來。'
           : '保險箱的門鏽開了，裡面空空的。');
         if (!f.safeOpen) return pad('老闆的保險箱', '四位數密碼，你不知道……也許未來的人找得到線索？', '1968', () => { f.safeOpen = true; msg('喀——保險箱打開了！'); });
-        if (f.neg === 'safe' && !held()) { f.neg = 'hand'; setHeld('neg'); return msg('拿到一條舊底片，黑黑的看不清楚。暗房在用，現在沒辦法沖洗。\n底片很怕熱、也怕潮濕。'); }
-        if (held() === 'neg') { f.neg = 'safe'; setHeld(null); return msg('底片放回保險箱。（保險箱放幾十年會鏽開喔）'); }
+        const inSafe = negAt('safe');
+        if (inSafe.length && !held()) {
+          const k = inSafe[0]; f.negs[k] = 'hand'; setHeld(k);
+          return msg(deep() ? `拿到${ITEM_NAMES[k]}，黑黑的看不清楚。${inSafe.length > 1 ? '保險箱裡還有另一條。' : ''}\n暗房在用，現在沒辦法沖洗。底片很怕熱、也怕潮濕。` : '拿到一條舊底片，黑黑的看不清楚。暗房在用，現在沒辦法沖洗。\n底片很怕熱、也怕潮濕。');
+        }
+        if (heldNeg()) { f.negs[held()] = 'safe'; setHeld(null); return msg('底片放回保險箱。（保險箱放幾十年會鏽開喔）'); }
         msg('保險箱裡只剩帳本。');
       },
     });
+    // 燈箱：普通以上才有，用來分辨兩條底片拍的是什麼
+    if (old && deep()) {
+      add(group(box(0.6, 0.75, 0.45, '#7A5032', -2.7, 0, -2.7), box(0.45, 0.03, 0.32, '#FFF6DA', -2.7, 0.76, -2.7, true)), {
+        id: 'lightbox', solid: { x: -2.7, z: -2.7, hw: 0.3, hd: 0.23 },
+        label: () => (heldNeg() ? `把${ITEM_NAMES[held()]}對著燈箱看` : '燈箱'),
+        act: () => {
+          if (!heldNeg()) return msg('一個看底片用的燈箱，亮亮的。');
+          note(`把${ITEM_NAMES[held()]}對著燈箱`, held() === f.good
+            ? '黑白顛倒的小小畫面裡，一個年輕人站在一扇門前面。\n門上好像寫著什麼，可是太小了，看不清楚。'
+            : '黑白顛倒的小小畫面裡，一家四口並排坐在椅子上，像是全家福。');
+        },
+      });
+    }
     // 三個保存地點：窗台、抽屜、防潮箱
     const place = (id, where, x, z, w, h, d, c1990, c2030, name, ruin) => {
       add(box(w, h, d, old ? c1990 : c2030, x, 0, z), {
         id, solid: { x, z, hw: w / 2, hd: d / 2 },
-        label: () => (old ? (held() === 'neg' ? `把底片放在${name}` : f.neg === where && !held() ? `從${name}拿回底片` : name) : name),
+        label: () => (old ? (heldNeg() ? `把${ITEM_NAMES[held()]}放在${name}` : negAt(where).length && !held() ? `從${name}拿回底片` : name) : name),
         act: () => {
           if (old) {
-            if (held() === 'neg') { f.neg = where; setHeld(null); return msg(`把底片放在${name}。`); }
-            if (f.neg === where && !held()) { f.neg = 'hand'; setHeld('neg'); return msg('拿回底片。'); }
+            if (heldNeg()) {
+              if (deep() && where === 'dry' && negAt('dry').length) return msg('防潮箱很小，只放得下一條底片。');
+              f.negs[held()] = where; setHeld(null); return msg(`把底片放在${name}。`);
+            }
+            if (negAt(where).length && !held()) { const k = negAt(where)[0]; f.negs[k] = 'hand'; setHeld(k); return msg(`拿回${ITEM_NAMES[k]}。`); }
             return msg(where === 'dry' ? `防潮箱上貼著：「請隨時插電，不插電就跟普通箱子一樣。」${f.power ? '（現在有插電）' : '（現在沒插電）'}` : `一個${name}。`);
           }
-          if (f.neg !== where) return msg(`${name}裡什麼都沒有。`);
+          const here = negAt(where);
+          if (!here.length) return msg(`${name}裡什麼都沒有。`);
           if (where === 'dry' && f.power) {
-            f.scanned = true;
-            return note('用手機翻拍底片', '底片保存得很好！手機把它翻成正片：\n\n1975 年的照相館。年輕的老闆站在暗房門口，\n門上用粉筆寫著：「暗房密碼 5203」');
+            if (here.includes(f.good)) {
+              f.scanned = true;
+              return note('用手機翻拍底片', '底片保存得很好！手機把它翻成正片：\n\n1975 年的照相館。年輕的老闆站在暗房門口，\n門上用粉筆寫著：「暗房密碼 5203」');
+            }
+            return note('用手機翻拍底片', '底片保存得很好！手機把它翻成正片：\n\n一家四口並排坐在照相館的椅子上，笑得很開心。\n（照片裡沒有暗房門。）');
           }
           return msg(ruin);
         },
@@ -1037,7 +1068,9 @@ LEVEL3.hint = () => {
 LEVEL4.hint = () => {
   const f = S.f;
   if (f.clock !== '0415' && f.mirror !== 0) return '2030 左邊那塊暗暗的牆好像刻著字。2030 指揮 1990 轉動反射鏡，讓光照到左邊。';
-  if (f.clock !== '0415') return '牆上刻著守燈人收工的時間。1990 把老爺鐘撥到那個時間（四位數）。';
+  if (f.clock !== '0415') return deep()
+    ? '牆上刻著守燈人「最後一趟巡塔後收工」。1990 的海圖桌上有巡塔紀錄表，找出最後一趟的時間，把老爺鐘撥到那裡（四位數）。'
+    : '牆上刻著守燈人收工的時間。1990 把老爺鐘撥到那個時間（四位數）。';
   if (!f.gotHandle) return '2030 去打開老爺鐘的鐘箱。';
   if (f.handle !== 'lever') return '2030 把拉桿把手裝到門邊的拉桿上。';
   return '兩邊都站到拉桿前，語音倒數「3、2、1、拉！」一起拉下去。';
@@ -1045,7 +1078,8 @@ LEVEL4.hint = () => {
 LEVEL5.hint = () => {
   const f = S.f;
   if (!f.safeOpen) return '保險箱密碼：2030 的剪報說是「老闆第一台相機的型號數字」，那台相機在 1990 左邊的架子上。';
-  if (f.neg !== 'dry' || !f.power) return '底片要放對地方：窗台會被太陽曬、抽屜會受潮。1990 把底片放進防潮箱，而且要插上電。';
+  if (deep() && f.negs[f.good] !== 'dry') return '保險箱裡有兩條底片，只有一條拍到暗房門（2030 的剪報有寫）。1990 把底片對著燈箱看，找出那一條，放進防潮箱（只放得下一條）。';
+  if (f.negs[f.good] !== 'dry' || !f.power) return '底片要放對地方：窗台會被太陽曬、抽屜會受潮。1990 把底片放進防潮箱，而且要插上電。';
   if (!f.scanned) return '2030 打開舊防潮箱，用手機翻拍底片。';
   return '照片裡的暗房門上寫著密碼。2030 到暗房門輸入。';
 };
