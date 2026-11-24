@@ -628,9 +628,10 @@ const LEVEL2 = {
 // =====================================================================
 // 第三關：巷口雜貨店 (侵蝕、自助付款、雙向密碼、封存)
 // =====================================================================
+const ANVIL = { corner: [2.2, 1.9, '牆角'], counter: [0.2, -1.0, '櫃台旁邊'], leak: [1.6, 0.4, '漏水的地方旁邊'] };
 const LEVEL3 = {
   name: '第三關・巷口雜貨店',
-  init() { S.f = { coin: 'safe', safeOpen: false, paid: false, rope: 'shelf', cap: 'counter', bucket: 'leak', gotRope: false }; },
+  init() { S.f = { coin: 'safe', safeOpen: false, paid: false, rope: 'shelf', cap: 'counter', bucket: 'leak', gotRope: false, anvil: 'corner' }; },
   reset(it) {
     const f = S.f;
     if (it === 'coin') f.coin = 'safe';
@@ -732,6 +733,17 @@ const LEVEL3 = {
         id: 'corner', label: () => (held() === 'bucket' ? '把水桶放在門邊' : '門邊角落'),
         act: () => { if (held() === 'bucket') { f.bucket = 'corner'; setHeld(null); return msg('把水桶放在門邊。'); } msg('門邊的空角落。'); },
       });
+      // 鐵砧：很重，只能拖到三個位置之一（普通以上要拖到漏水處旁，2030 才有地方綁繩子）
+      add(group(box(0.45, 0.3, 0.3, '#3E474F', ANVIL[f.anvil][0], 0, ANVIL[f.anvil][1]), box(0.6, 0.12, 0.3, '#5B6670', ANVIL[f.anvil][0], 0.3, ANVIL[f.anvil][1])), {
+        id: 'anvil', solid: { x: ANVIL[f.anvil][0], z: ANVIL[f.anvil][1], hw: 0.3, hd: 0.18 },
+        label: () => (held() ? '鐵砧（手上拿著東西拖不動）' : `拖動鐵砧（現在在${ANVIL[f.anvil][2]}）`),
+        act: () => {
+          if (held()) return msg('鐵砧超重，要空出兩隻手才拖得動。');
+          const order = ['corner', 'counter', 'leak'];
+          f.anvil = order[(order.indexOf(f.anvil) + 1) % 3];
+          msg(`嘿咻——把鐵砧拖到${ANVIL[f.anvil][2]}。這東西重到大概沒人搬得走。`);
+        },
+      });
       // 地板暗格
       add(group(box(0.7, 0.02, 0.5, '#5E3E26', -3.3, 0, -2.4), box(0.08, 0.02, 0.08, '#B8862E', -3.0, 0.02, -2.4)), {
         id: 'stash',
@@ -769,11 +781,18 @@ const LEVEL3 = {
         add(group(box(1.0, 0.02, 1.0, '#111111', BX, 0, BZ), box(1.1, 0.03, 0.08, '#6B5A48', BX, 0, BZ - 0.55), box(1.1, 0.03, 0.08, '#6B5A48', BX, 0, BZ + 0.55)), {
           id: 'hole', solid: { x: BX, z: BZ, hw: 0.45, hd: 0.45 },
           label: () => (held() === 'rope2030' ? '綁好麻繩爬下去' : '地板上的大洞'),
-          act: () => (held() === 'rope2030'
-            ? finish(true, '麻繩綁在櫃台腳上，順著爬進倉庫，推開後門——你們逃出了巷口雜貨店！')
-            : msg('地板爛出一個大洞，下面就是倉庫，大概 3 公尺深。跳下去會受傷，需要一條繩子。')),
+          act: () => {
+            if (held() !== 'rope2030') return msg('地板爛出一個大洞，下面就是倉庫，大概 3 公尺深。跳下去會受傷，需要一條繩子。');
+            if (!deep()) return finish(true, '麻繩綁在櫃台腳上，順著爬進倉庫，推開後門——你們逃出了巷口雜貨店！');
+            if (f.anvil !== 'leak') return msg('洞邊沒有夠結實的東西可以綁繩子。櫃台腳早就爛了，一拉就斷……\n要是洞旁邊有什麼很重的東西就好了。');
+            finish(true, '麻繩綁在洞邊那顆鏽成一塊的鐵砧上，順著爬進倉庫，推開後門——你們逃出了巷口雜貨店！');
+          },
         });
       }
+      add(group(box(0.45, 0.3, 0.3, '#5E4E42', ANVIL[f.anvil][0], 0, ANVIL[f.anvil][1]), box(0.6, 0.12, 0.3, '#6E5E50', ANVIL[f.anvil][0], 0.3, ANVIL[f.anvil][1])), {
+        id: 'anvil', solid: { x: ANVIL[f.anvil][0], z: ANVIL[f.anvil][1], hw: 0.3, hd: 0.18 }, label: () => '生鏽的鐵砧',
+        act: () => msg('一個生鏽的大鐵砧，重得要命，鏽在地板上動都不動。'),
+      });
       add(box(0.7, 0.02, 0.5, '#6E6258', -3.3, 0, -2.4), {
         id: 'stash', label: () => '一塊鬆動的地板',
         act: () => {
@@ -1012,6 +1031,7 @@ LEVEL3.hint = () => {
   if (!(f.cap === 'stash' && f.rope === 'cap') && !f.gotRope) return '麻繩沒密封會爛掉。1990 把麻繩放進櫃台上的時光膠囊，再把膠囊藏進櫃台後面的地板暗格。';
   if (f.bucket === 'leak') return '1990 屋頂漏水，下面的水桶接著水。把水桶拿開放到門邊，讓水滴幾十年……';
   if (!f.gotRope) return '2030 掀開櫃台後面那塊鬆動的地板。';
+  if (deep() && f.anvil !== 'leak') return '2030 洞邊沒地方綁繩子。1990 的店裡有個很重的鐵砧，把它拖到漏水的地方旁邊，幾十年後它還會在那裡。';
   return '2030 拿著麻繩到地板的大洞，爬下去！';
 };
 LEVEL4.hint = () => {
