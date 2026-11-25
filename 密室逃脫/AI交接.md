@@ -1,6 +1,6 @@
 # 《隔代房間》AI 交接文件
 
-> 最後更新：2026-11-18（v0.9，兩章十關＋手機觸控＋房間碼）。接手的 AI 請先讀完這份，再讀 `設計/關卡設計.md`。
+> 最後更新：2026-11-18（v0.9，兩章十關，每關 3～5 謎題＋劇情）。接手的 AI 請先讀完這份，再讀 `設計/關卡設計.md`。
 > 跟使用者溝通一律用**繁體中文**。
 
 ## 1. 這是什麼
@@ -33,14 +33,13 @@
 - **動作執行（房主權威）**：`doAct(who, era, id)` 用 `withCtx` + `buildFor(era)` 在背景建出那個年代的物件，執行 `act()`，然後 `afterAction()` 重建畫面並廣播狀態。`msg / note / pad` 會自動送給「做動作的那個人」。
   - 密碼鎖：`pad(title, hint, code, onOk, bad)`，`code` 可以是字串或檢查函式（時鐘用）。
   - `finish(win, text)` 結束並記錄成績。`crack(text)` 加時間裂痕，上限看難度。
-- **連線 `Net`（不用自架伺服器）**：星狀，隊員只連房主，房主轉發。兩種配對方式，連上之後都是 WebRTC 直連：
-  - **房間碼（v0.9 起的主要方式）**：用 PeerJS 1.5.4（`loadPeer()` 從 jsdelivr 動態載入）和它的免費公開配對伺服器（0.peerjs.com，含 PeerJS 的公開 TURN）。房主登記成 `kdroom-房間碼`（4 碼，`ROOM_CHARS` 拿掉 0/O/1/I/L），撞名就換一個。邀請連結是 `遊戲網址#room=ABCD`，`openFromLink()` 會開加入畫面並填好房間碼；根目錄 `index.html` 轉址時會保留 `#`。PeerJS 連線用 `connAdapter()` 包成跟 RTCDataChannel 一樣的介面，所以 `send / broadcast` 共用。房主連上後先送 `welcome{id}` 給隊員，隊員收到才送 `hello`。
-  - **連線碼（舊方法，收在「連不上？」裡當備案）**：SDP 用 deflate-raw + base64 壓成 `KD1.` 開頭的邀請碼／回覆碼，玩家用 Discord 互貼；ICE 只用 Google STUN。
+- **連線 `Net`（不用伺服器）**：WebRTC + Google STUN。SDP 用 deflate-raw + base64 壓成 `KD1.` 開頭的邀請碼／回覆碼，玩家用 Discord 互貼。星狀：隊員只連房主，房主轉發。
   - 隊員→房主：`hello{name,era,look}`、`era`（只在大廳有效）、`look`、`act{id}`、`padTry{val}`、`hint`、`pos`。
-  - 房主→隊員：`welcome{id}`（只有房間碼方式）、`lobby`、`start{level,diff,players,state}`、`state`、`toast`、`note`、`pad`、`padResult{ok,bad}`、`finish{win,text,sec}`、`pos`。
+  - 房主→隊員：`lobby`、`start{level,diff,players,state}`、`state`、`toast`、`note`、`pad`、`padResult{ok,bad}`、`finish{win,text,sec}`、`pos`。
   - 位置同步用 `setInterval` 100ms（分頁在背景時 rAF 會停）。斷線時手上物品交給同年代隊友，沒人接就 `reset`。
-  - **Discord 活動（Activity）不支援 WebRTC**（官方文件：只能用 WebSocket 經 Discord 代理），所以活動版要整塊換成雲端即時服務。2026-11-18 跟使用者討論後決定**先不做活動版**，改做上面的房間碼。
+  - 之後要放進 Discord 活動時，只要換掉 `Net` 這一塊。
 - **難度 `DIFF`（v0.8 改）**：三種難度都是提示 3、失誤上限 3、同時按 3 秒（單機 +5 秒）。**難度＝解謎深度**：每關在 `init()` 依 `S.diff` 改變謎題（例：第七關困難用代號＋奇偶規則、第八關困難把接線表移到機房、第九關簡單改成直接選方位、第十關困難加警示燈）。困難的第一章線索欄只剩一句（`brief`）。新關卡請照這個原則設計三種深度。
+- **v0.9 擴充層 `ext(LEVEL, {...})`**（在 `const LEVELS` 前面）：不改原本關卡，外面包一層——`init`（多的旗標）、`build`（多的物件）、`reset`、`hint`（主線做完 `mainDone(f)` 後才提示新謎題；`hintFirst` 反過來）、`gate(f)`（出口條件）、`gateMsg`、`story: {intro, outro}`、`memento`（回憶物件名稱）。`finish(true)` 時 gate 沒過只會跳 `gateMsg`，不會結束；有 outro 會接在結果畫面。開局會跳出 `#story` 劇情畫面。`memo(f, 標題, 內文)` 設定找到回憶物件。`pad()` 的位數跟著密碼字串長度（1～6 位）。
 - **倒數**：關卡加 `timer: 秒數` 和 `timeoutText`，`setInterval` 會在 HUD 顯示 ⏱，時間到由房主（或單機）判定失敗。
 - **配色／畫風**：`PAL` 裡有各關配色（可含 `fog: [顏色, near, far]`、`win` 窗色）；關卡用 `pal: {1990: 'xxx', 2030: 'yyy'}` 指定。`style: 'toon' | 'neon' | 'flat'`（或分兩邊的物件）：toon 用 `MeshToonMaterial`，neon 會在 `add()` 的物件加發光邊線。`mat()` 的快取鍵包含畫風。
 - **章節進度**：`localStorage['kdroom.progress']`，過前一關才解鎖；有「全部解鎖（試玩用）」。
@@ -57,14 +56,17 @@
 
 ## 5. 測試方法
 
-- 本機開靜態伺服器，用瀏覽器開，**不要用 file://**（部分工具不能操作）。這台電腦**沒有 Python**；用 `E:\Game\.claude\serve.ps1`（PowerShell 寫的小伺服器，`.claude/` 已加進 `.git/info/exclude`，不會進 repo），在 `E:\.claude\launch.json` 裡叫 `game`，用 preview_start 開，網址 http://localhost:8765/。
+- **自動測試**：把 `測試/自動測試.js` 跟遊戲放在同一個本機伺服器資料夾，打開遊戲後在 console 執行 `(await import('/自動測試.js')).runAll()`（檔名可改成英文），會把 10 關 × 3 難度從頭玩到逃出，也檢查「條件沒達成時出口不會開」。**新增或修改關卡時，要一起更新裡面的解法。**
+- **多人**：兩個分頁同一個網址，同源可以用 `localStorage` 互傳邀請碼／回覆碼；`window.__game.netAct(id)` 會照身分（房主或隊員）送出動作。v0.9 已實測第一關、第七關。
+
+- 本機開靜態伺服器（例：`python -m http.server 8765`），用瀏覽器開，**不要用 file://**（部分工具不能操作）。
 - 用 `window.__game` 直接驅動：`startSolo(n)`、`doAct(S.who, S.era, '物件id')`、`switchEra()`；密碼鎖可以點 `#pad .keys button`。
-- 多人：開兩個分頁，一個開房、一個用 `…#room=房間碼` 加入（或互貼連線碼）。v0.9 的房間碼在同一台電腦兩個分頁測過：連線、開始遊戲、隊員要提示、位置同步、打錯房間碼的錯誤訊息都正常，舊連線碼也還能用。**還沒用兩台電腦、不同網路實測。**
+- 多人：開兩個分頁，一個開房、一個加入，互貼邀請碼／回覆碼。**目前只在同一台電腦兩個分頁測過**，還沒用兩台電腦、不同網路實測。
 
 ## 6. 使用者的偏好與限制（重要）
 
 - 回覆用繁體中文；講結論、講白話，不要丟一堆術語。
-- **不要用 VM、雲端主機或自架伺服器**跑遊戲，也不要需要登入驗證程式（例如 Cloudflare Workers）的做法。2026-11-18 使用者同意用 PeerJS 免費公開配對服務做房間碼（不用註冊、沒有金鑰），舊的「複製貼上連線碼」要一直保留當備案。
+- **不要用 VM、雲端主機或自架伺服器**跑遊戲；多人連線維持「複製貼上連線碼」。
 - UI 大改前先給設計稿（用 Design）。
 - 不要控制使用者的電腦；瀏覽器只用 Claude 內建的瀏覽器。
 - 公開的地方不放密碼、金鑰、個人資料。這個 repo **已公開**，並開了 GitHub Pages：https://910228jason-ops.github.io/game/ （根目錄 `index.html` 會跳到遊戲）。
@@ -85,15 +87,13 @@
 - [x] 手機觸控操作（v0.6，只用模擬觸控測過，**還沒在真的手機上測**）
 - [x] 手機網址：GitHub Pages https://910228jason-ops.github.io/game/
 - [x] 第二章八～十關
-- [x] 第一章普通／困難多一個謎題步驟（v0.9，第一～五關；第六關維持）。程式裡用 `deep()` 判斷（不是簡單就是 true），每局隨機的值都放在 `S.f`，多人時由房主決定再同步。新物品：`b1～b3`（藥瓶）、`negA/negB`（底片）
+- [ ] 第一章的「三種深度」目前只差在線索欄，之後可以像第二章一樣讓謎題本身變化
 - [ ] 第三章以後（構想：鏡中宅邸、夜班博物館、夜行列車），見 `設計/關卡設計.md`
-- [x] 房間碼／邀請連結（v0.9）
-- [ ] 放進 Discord 活動（Activity）：**暫緩**。活動裡不能用 WebRTC，要改用雲端即時服務（例如 Photon）；登入驗證可以不做。使用者不想用驗證伺服器，動之前一定要先問
+- [ ] 放進 Discord 活動（Activity）：需要靜態網頁（GitHub Pages，要公開 repo）＋一個換 token 的端點（例如 Cloudflare Workers）。動之前要先問使用者
 - [ ] 第二個遊戲《耳語群島》（謊言傳染），企劃在 `設計/企劃_隔代房間與耳語群島.md`
 
 ## 9. 已知問題／沒驗證的
 
 - 3D 角色的實際外觀只用程式量過尺寸，沒截圖確認過好不好看。
-- 公司、學校網路或手機熱點可能擋 WebRTC 直連，會一直卡在「等對方連上」。房間碼方式有 PeerJS 的公開 TURN 中繼可以救一部分，但沒有保證。
-- PeerJS 的公開配對伺服器是別人免費提供的，偶爾會連不上；這時畫面會叫玩家改用舊的連線碼。
+- 公司、學校網路或手機熱點可能擋 WebRTC 直連，會一直卡在「等對方連上」。
 - 2030 拿到東西後，1990 再改過去（例如把膠囊拿走），2030 手上的東西不會消失（時間悖論，目前接受）。

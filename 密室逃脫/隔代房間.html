@@ -49,10 +49,6 @@
   textarea { height: 76px; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 12px; word-break: break-all; }
   label { font-size: 13px; font-weight: 700; display: block; margin-top: 10px; }
   .status { font-size: 14px; color: #5b4a36; }
-  .roomCode { font-size: 40px; font-weight: 900; letter-spacing: 8px; font-family: ui-monospace, Consolas, monospace; background: #1b1712; color: var(--amber); border-radius: 14px; padding: 4px 18px; display: inline-block; min-width: 150px; text-align: center; }
-  input.codeIn { font-size: 26px; font-weight: 900; letter-spacing: 6px; text-transform: uppercase; text-align: center; font-family: ui-monospace, Consolas, monospace; max-width: 220px; }
-  details.old { margin-top: 14px; border-top: 1px dashed #cfc6b4; padding-top: 8px; }
-  details.old summary { cursor: pointer; font-size: 14px; font-weight: 700; color: #5b4a36; }
   .plist { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
   .plist div { display: flex; align-items: center; gap: 8px; background: #fff; border-radius: 10px; padding: 6px 10px; font-size: 15px; }
   .tag { font-size: 12px; font-weight: 900; border-radius: 6px; padding: 1px 6px; color: #1b1712; }
@@ -118,7 +114,7 @@
 <div class="hud" id="cracks"></div>
 <div class="hud" id="goal"><h3>這一邊的線索</h3><div id="goalText"></div></div>
 <div class="hud" id="team"></div>
-<div class="hud" id="held">手上：<b id="heldName">（空）</b></div>
+<div class="hud" id="held">手上：<b id="heldName">（空）</b><div id="memo" style="font-size:12px;margin-top:4px;opacity:.9"></div></div>
 <div class="hud" id="cross"></div>
 <div class="hud" id="prompt"><kbd>E</kbd><span id="promptText"></span></div>
 <div class="hud" id="toast"></div>
@@ -144,7 +140,7 @@
     <button class="ghost" id="btnLook">捏角色</button>
     <button class="ghost" id="btnTouch">操作：鍵盤滑鼠</button>
   </div>
-  <p style="font-size:13px;opacity:.75;margin-top:12px">多人連線：房主開房後把「邀請連結」貼到 Discord，朋友點開就能加入。語音請用 Discord。</p>
+  <p style="font-size:13px;opacity:.75;margin-top:12px">多人連線不需要伺服器：房主產生「邀請碼」貼給朋友，朋友貼回「回覆碼」就連上了。語音請用 Discord。</p>
 </div></div>
 
 <!-- 單機選關 -->
@@ -167,19 +163,13 @@
   <select id="hLevel"></select>
   <label>難度</label><div class="seg" id="hostDiff"></div>
   <div class="row" style="margin-top:8px"><button class="ghost" data-look>捏角色</button></div>
-  <h3>邀請朋友</h3>
-  <div class="row" style="margin-top:0"><span class="roomCode" id="hRoomCode">····</span><span class="status" id="hRoomStatus">準備房間碼中…</span></div>
-  <div class="row" style="margin-top:8px"><button id="hCopyLink">複製邀請連結</button><button class="ghost" id="hCopyCode">只複製房間碼</button></div>
-  <p class="status" style="margin:6px 0 0">把邀請連結貼到 Discord，朋友點開就會進到加入畫面；也可以直接告訴他們房間碼。人數不限，同一個連結大家共用。</p>
-  <details class="old" id="hOld"><summary>連不上？改用連線碼（舊方法，每位朋友各做一次）</summary>
-  <div class="row"><button id="hInvite" class="ghost">① 產生邀請碼</button><span class="status" id="hInviteStatus"></span></div>
+  <h3>邀請朋友（每位朋友各做一次）</h3>
+  <div class="row" style="margin-top:0"><button id="hInvite" class="ghost">① 產生邀請碼</button><span class="status" id="hInviteStatus"></span></div>
   <textarea id="hInviteCode" readonly placeholder="按①之後，這裡會出現邀請碼。複製貼給朋友。"></textarea>
   <div class="row" style="margin-top:6px"><button class="ghost" id="hCopy">複製邀請碼</button></div>
   <label>② 貼上朋友傳回來的回覆碼</label>
   <textarea id="hAnswer" placeholder="朋友貼上邀請碼後會得到一串回覆碼"></textarea>
-  <div class="row" style="margin-top:6px"><button id="hConnect" class="ghost">連線</button></div>
-  </details>
-  <p class="status" id="hStatus" style="margin:8px 0 0"></p>
+  <div class="row" style="margin-top:6px"><button id="hConnect" class="ghost">連線</button><span class="status" id="hStatus"></span></div>
   <h3>房間裡的人</h3><div class="plist" id="hPlayers"></div>
   <div class="row"><button id="hStart">開始遊戲</button><button class="ghost" data-back>返回</button></div>
 </div></div>
@@ -190,16 +180,11 @@
   <label>你的名字</label><input id="jName" maxlength="10" value="玩家">
   <label>你要在哪個年代</label>
   <div class="row" style="margin-top:4px"><button data-era="1990" class="ghost">1990 過去</button><button data-era="2030" class="sel t2030">2030 未來</button></div>
-  <label>房間碼（房主畫面上的 4 個字）</label>
-  <div class="row" style="margin-top:4px"><input id="jRoom" class="codeIn" maxlength="4" autocomplete="off" spellcheck="false" placeholder="ABCD"><button id="jGo">加入</button></div>
-  <details class="old" id="jOld"><summary>連不上？改用連線碼（舊方法）</summary>
   <label>① 貼上房主給你的邀請碼</label>
   <textarea id="jInvite" placeholder="貼在這裡"></textarea>
   <div class="row" style="margin-top:6px"><button id="jMake" class="ghost">② 產生回覆碼</button><span class="status" id="jMakeStatus"></span></div>
   <textarea id="jAnswer" readonly placeholder="回覆碼會出現在這裡，複製貼回給房主"></textarea>
-  <div class="row" style="margin-top:6px"><button class="ghost" id="jCopy">複製回覆碼</button></div>
-  </details>
-  <p class="status" id="jStatus" style="margin:8px 0 0"></p>
+  <div class="row" style="margin-top:6px"><button class="ghost" id="jCopy">複製回覆碼</button><span class="status" id="jStatus"></span></div>
   <h3>房間裡的人</h3><div class="plist" id="jPlayers"></div>
   <div class="row"><button class="ghost" data-look>捏角色</button><button class="ghost" data-back>返回</button></div>
 </div></div>
@@ -217,6 +202,12 @@
   <h1 id="resultTitle"></h1><p id="resultBody" style="white-space:pre-line"></p>
   <div class="row" id="resultBtns"><button id="resultNext">下一關</button><button id="resultRetry" class="ghost">再玩一次</button><button class="ghost" id="resultMenu">回選單</button></div>
   <p class="status" id="resultWait" style="display:none">等房主決定下一步……</p>
+</div></div>
+
+<!-- 劇情 -->
+<div class="modal" id="story"><div class="card">
+  <h2 id="storyTitle"></h2><p id="storyBody" style="white-space:pre-line"></p>
+  <div class="row"><button id="storyGo">開始</button></div>
 </div></div>
 
 <!-- 捏角色 -->
@@ -279,7 +270,7 @@ const ME = { id: '1990', name: '我', era: '1990', color: '#E07A4F' };
 const pos = { x: 0, z: 2.3, yaw: 0, pitch: 0 };
 const soloPos = { 1990: { x: 0, z: 2.3, yaw: 0, pitch: 0 }, 2030: { x: 0, z: 2.3, yaw: 0, pitch: 0 } };
 let hits = [], solids = [];
-const ITEM_NAMES = { b1: '1號藥瓶', b2: '2號藥瓶', b3: '3號藥瓶', negA: '底片 A', negB: '底片 B', sd: '螺絲起子', tin: '餅乾鐵盒', pot: '小樹苗盆栽', key: '亮亮的鑰匙', rr: '除鏽劑', rr2030: '除鏽劑（2030）', coin: '一把零錢', rope: '麻繩', cap: '時光膠囊鐵罐', bucket: '水桶', rope2030: '麻繩（2030，還很牢）', handle: '拉桿把手', neg: '一條舊底片', paint: '紅油漆桶', oil: '機油罐', crank: '捲門搖把', hammer: '大鐵鎚', crank2030: '捲門搖把（2030，銅的）', fuse0: '紅色保險絲', fuse1: '藍色保險絲', fuse2: '綠色保險絲', fuse3: '黃色保險絲' };
+const ITEM_NAMES = { sd: '螺絲起子', tin: '餅乾鐵盒', pot: '小樹苗盆栽', key: '亮亮的鑰匙', rr: '除鏽劑', rr2030: '除鏽劑（2030）', coin: '一把零錢', rope: '麻繩', cap: '時光膠囊鐵罐', bucket: '水桶', rope2030: '麻繩（2030，還很牢）', handle: '拉桿把手', neg: '一條舊底片', paint: '紅油漆桶', oil: '機油罐', crank: '捲門搖把', hammer: '大鐵鎚', crank2030: '捲門搖把（2030，銅的）', fuse0: '紅色保險絲', fuse1: '藍色保險絲', fuse2: '綠色保險絲', fuse3: '黃色保險絲', marble: '玻璃彈珠' };
 const COLORS = ['#E07A4F', '#4E8FA0', '#B5604A', '#3F6E8C', '#8C6BB0', '#5E9A4E'];
 const held = () => S.held[S.who] || null;
 const setHeld = (v) => { S.held[S.who] = v; };
@@ -362,17 +353,9 @@ function crack(text) {
 // =====================================================================
 // 第一關：阿嬤的客廳
 // =====================================================================
-const deep = () => S.diff !== 'easy'; // 普通、困難才有的額外謎題步驟
-const PEG_NAMES = ['左', '中', '右'];
-const KIND_NAMES = { rr: '除鏽劑', alc: '酒精', water: '蒸餾水' };
-const heldBottle = () => { const m = /^b(\d)$/.exec(held() || ''); return m ? +m[1] : 0; };
 const LEVEL1 = {
   name: '第一關・阿嬤的客廳',
-  init() {
-    // 普通／困難：1990 的木櫃夾層卡住，要照 2030 夾層內側刻的順序按三根木釘才打得開（順序每局隨機）
-    S.f = { sd: 'toolbox', tin: 'table', sdInTin: false, cab: { tin: false, sd: false }, pot: 'corner', potWasSun: false, cabUnlocked: false, gotSd: false, ventOpen: false,
-      drawerOpen: !deep(), pegOrder: shuffle([0, 1, 2]), pegs: [] };
-  },
+  init() { S.f = { sd: 'toolbox', tin: 'table', sdInTin: false, cab: { tin: false, sd: false }, pot: 'corner', potWasSun: false, cabUnlocked: false, gotSd: false, ventOpen: false }; },
   reset(it) {
     const f = S.f;
     if (it === 'sd') f.sd = 'toolbox';
@@ -396,22 +379,6 @@ const LEVEL1 = {
       label: () => (old ? (held() ? `把${ITEM_NAMES[held()]}收進木櫃` : '打開木櫃') : (f.cabUnlocked ? '打開木櫃' : '木櫃的密碼鎖')),
       act: () => (old ? cabinet1990() : cabinet2030()),
     });
-    if (old && !f.drawerOpen) {
-      // 木櫃正面的三根木釘（左、中、右）
-      PEG_NAMES.forEach((nm, i) => {
-        add(cyl(0.035, 0.035, 0.06, '#C8A46A', -2.5 + i * 0.5, 0.72, -2.34, 8), {
-          id: 'peg' + i, label: () => `按${nm}邊的木釘`,
-          act: () => {
-            f.pegs.push(i);
-            const n = f.pegs.length;
-            if (f.pegOrder[n - 1] !== i) { f.pegs = []; return crack('木釘喀一聲卡死又彈回來，整個木櫃晃了一下——時間裂痕！\n（按的順序不對。也許有人知道正確的順序？）'); }
-            if (n < 3) return msg(`按下${nm}邊的木釘，裡面傳出喀的一聲。`);
-            f.drawerOpen = true; f.pegs = [];
-            msg('三根木釘都按下去了——喀啦！木櫃的夾層彈開了。');
-          },
-        });
-      });
-    }
     if (old) {
       add(group(box(0.5, 0.62, 0.02, '#F4ECDD', 0.8, 1.3, -2.94), box(0.5, 0.14, 0.03, '#C9473A', 0.8, 1.78, -2.94)), {
         id: 'cal', label: () => '看掛曆', act: () => note('1990 年 8 月的掛曆', '17 日被紅筆圈了起來，旁邊寫著：\n「阿嬤生日」'),
@@ -458,13 +425,6 @@ const LEVEL1 = {
       add(box(1, 2.1, 0.06, '#7A4A2A', -2.5, 0, 2.96), { id: 'door', label: () => '大門', act: () => msg('外面是 1990 年的街道。你的任務是幫 2030 的隊友逃出去。') });
     } else {
       add(box(0.5, 0.62, 0.02, '#D6DFE1', 0.8, 1.3, -2.94), { id: 'mark', label: () => '牆上的印子', act: () => msg('牆上有一塊沒被曬褪色的方形印子，以前這裡掛過什麼東西。') });
-      // 1990 的小邊桌沒有留到 2030：在原位留下地板上的桌腳印，讓玩家知道東西去哪了
-      add(group(box(0.06, 0.004, 0.06, '#6F7A7E', 2.65, 0.001, -2.8), box(0.06, 0.004, 0.06, '#6F7A7E', 3.15, 0.001, -2.8), box(0.06, 0.004, 0.06, '#6F7A7E', 2.65, 0.001, -2.4), box(0.06, 0.004, 0.06, '#6F7A7E', 3.15, 0.001, -2.4), box(0.6, 0.002, 0.5, '#B9C3C6', 2.9, 0.0005, -2.6)), {
-        id: 'tableMark', label: () => '地上的桌腳印',
-        act: () => msg(f.tin === 'table'
-          ? '這裡以前擺著一張小邊桌。桌子連同桌上的鐵盒，早就被當成垃圾清掉了。'
-          : '這裡以前擺著一張小邊桌，早就被清掉了。'),
-      });
       add(box(0.5, 0.25, 0.3, '#7B5A48', -3.3, 0, -1.4), { id: 'toolbox', solid: { x: -3.3, z: -1.4, hw: 0.28, hd: 0.2 }, label: () => '生鏽的工具箱', act: () => msg('工具箱鏽穿了，裡面什麼都沒有。') });
       const treeOk = f.pot === 'sun';
       if (treeOk) {
@@ -485,7 +445,6 @@ const LEVEL1 = {
     }
     function cabinet1990() {
       const h = held(), c = f.cab;
-      if (!f.drawerOpen) return msg(h ? '木櫃裡有個夾層，可是卡得死死的，東西放不進去。\n櫃子正面有三根木釘，好像是什麼機關。' : '木櫃裡有個夾層，可是卡得死死的。櫃子正面有三根木釘。');
       if (h === 'tin') { c.tin = true; f.tin = 'cab'; setHeld(null); return msg(f.sdInTin ? '把裝著螺絲起子的鐵盒收進木櫃夾層。' : '把空鐵盒收進木櫃。'); }
       if (h === 'sd') {
         setHeld(null);
@@ -500,7 +459,6 @@ const LEVEL1 = {
     function cabinet2030() {
       if (!f.cabUnlocked) return pad('木櫃的密碼鎖', '鎖上貼著一張便條：「阿嬤的生日」（四位數：月月日日）', '0817', () => { f.cabUnlocked = true; msg('嗶——密碼鎖打開了！'); });
       const c = f.cab;
-      if (!f.drawerOpen) return note('木櫃夾層的內側', `夾層的木板內側，有阿嬤用小刀刻的字：\n「夾層卡住的話，依序按 ${f.pegOrder.map((i) => PEG_NAMES[i]).join('、')} 三根木釘。」\n\n（夾層裡空空的。）`);
       if (c.tin && f.sdInTin && !f.gotSd) { f.gotSd = true; setHeld('sd'); return msg('夾層裡有個生鏽的餅乾鐵盒。打開——螺絲起子保存得像新的一樣！'); }
       if (f.gotSd) return msg('夾層已經空了。');
       if (c.sd) return msg('夾層裡有一支鏽成一團的螺絲起子，完全轉不動。\n要是當年有好好密封就好了……');
@@ -521,17 +479,8 @@ const LEVEL1 = {
 // =====================================================================
 const LEVEL2 = {
   name: '第二關・理化教室',
-  init() {
-    // 普通／困難：架上三瓶標籤糊掉的藥瓶，只有一瓶是除鏽劑（每局隨機）；2030 的藥品清冊查得到編號。簡單只有一瓶。
-    const kinds = deep() ? shuffle(['rr', 'alc', 'water']) : ['rr'];
-    const bottles = {}, k = {};
-    kinds.forEach((kind, i) => { bottles[i + 1] = 'shelf'; k[i + 1] = kind; });
-    S.f = { bottles, kinds: k, cab: null, got: null, spent: {}, cabUnlocked: false, desk: 'center', gotRr: false };
-  },
-  reset(it) {
-    const m = /^b(\d)$/.exec(it || '');
-    if (m) { S.f.bottles[m[1]] = 'shelf'; if (S.f.cab === +m[1]) S.f.cab = null; }
-  },
+  init() { S.f = { rr: 'shelf', cabUnlocked: false, desk: 'center', gotRr: false }; },
+  reset(it) { if (it === 'rr') S.f.rr = 'shelf'; },
   goal(era) {
     return era === '1990'
       ? '你在 1990 的理化教室。<br>・密封櫃是老師設的密碼，你不知道<br>・講桌好像推得動<br>・東西沒密封好，放幾十年會乾掉'
@@ -551,38 +500,24 @@ const LEVEL2 = {
         act: () => { f.desk = f.desk === 'center' ? 'window' : 'center'; msg(f.desk === 'window' ? '嘿咻——講桌推到窗邊了。地板上露出一塊活板門。' : '講桌推回中間。'); },
       });
       if (f.desk === 'window') add(box(0.9, 0.02, 0.9, '#5E3E26', 0, 0, -1.4), { id: 'trap', label: () => '活板門', act: () => msg('活板門被木條釘死了，現在打不開。也許未來的人有辦法。') });
-      add(group(box(0.4, 1.6, 1.2, '#7A5032', -3.75, 0, -1.2), box(0.42, 0.04, 1.2, '#5E3E26', -3.75, 1.0, -1.2)), {
+      const shelf = group(box(0.4, 1.6, 1.2, '#7A5032', -3.75, 0, -1.2), box(0.42, 0.04, 1.2, '#5E3E26', -3.75, 1.0, -1.2));
+      if (f.rr === 'shelf') shelf.add(cyl(0.07, 0.07, 0.22, '#7A3E1E', -3.7, 1.04, -1.2, 10));
+      add(shelf, {
         id: 'shelf', solid: { x: -3.75, z: -1.2, hw: 0.25, hd: 0.6 },
-        label: () => (heldBottle() ? `把${ITEM_NAMES[held()]}放回架上` : '藥品架'),
+        label: () => (f.rr === 'shelf' && !held() ? '拿起除鏽劑' : held() === 'rr' ? '把除鏽劑放回架上' : '藥品架'),
         act: () => {
-          const n = heldBottle();
-          if (n) { f.bottles[n] = 'shelf'; setHeld(null); return msg('放回架上。'); }
-          msg(Object.values(f.bottles).includes('shelf') ? '藥品架上除了這幾瓶，其他都是空瓶子。' : '藥品架上都是空瓶子。');
+          if (f.rr === 'shelf' && !held()) { f.rr = 'hand'; setHeld('rr'); return msg('拿到一瓶除鏽劑。標籤寫著：開封後請密封保存。'); }
+          if (held() === 'rr') { f.rr = 'shelf'; setHeld(null); return msg('放回架上。'); }
+          msg('藥品架上都是空瓶子。');
         },
-      });
-      Object.keys(f.bottles).forEach((n) => {
-        if (f.bottles[n] !== 'shelf') return;
-        const z = -1.2 + (Object.keys(f.bottles).length > 1 ? (n - 2) * 0.35 : 0);
-        add(cyl(0.07, 0.07, 0.22, '#7A3E1E', -3.7, 1.04, z, 10), {
-          id: 'bottle' + n, label: () => (held() ? '手上拿著東西' : deep() ? `拿起 ${n} 號藥瓶` : '拿起除鏽劑'),
-          act: () => {
-            if (held()) return msg('先把手上的東西放下。');
-            f.bottles[n] = 'hand'; setHeld('b' + n);
-            msg(deep() ? `拿起 ${n} 號藥瓶。標籤被水泡糊了，看不出裝的是什麼，只剩瓶底刻著「${n}」。\n標籤角落還看得到一行小字：開封後請密封保存。` : '拿到一瓶除鏽劑。標籤寫著：開封後請密封保存。');
-          },
-        });
       });
       add(group(box(0.9, 1.7, 0.6, '#7C858C', 3.4, 0, -2.6), box(0.12, 0.16, 0.03, f.cabUnlocked ? '#6cc08a' : '#C9473A', 3.05, 1.0, -2.28, true)), {
         id: 'scab', solid: { x: 3.4, z: -2.6, hw: 0.45, hd: 0.3 },
-        label: () => (!f.cabUnlocked ? '密封櫃（上鎖）' : heldBottle() ? `把${ITEM_NAMES[held()]}鎖進密封櫃` : f.cab && !held() ? `拿出${ITEM_NAMES['b' + f.cab]}` : '密封櫃'),
+        label: () => (!f.cabUnlocked ? '密封櫃（上鎖）' : held() === 'rr' ? '把除鏽劑鎖進密封櫃' : f.rr === 'cab' ? '拿出除鏽劑' : '密封櫃'),
         act: () => {
           if (!f.cabUnlocked) return pad('密封櫃', '老師設的四位數密碼，你不知道……也許未來的人查得到？', '3141', () => { f.cabUnlocked = true; msg('喀——密封櫃打開了。'); });
-          const n = heldBottle();
-          if (n) {
-            if (f.cab) return msg('密封櫃很窄，只放得下一瓶。先把裡面那瓶拿出來。');
-            f.cab = n; f.bottles[n] = 'cab'; setHeld(null); return msg(`把${ITEM_NAMES['b' + n]}鎖進密封櫃，門關緊。`);
-          }
-          if (f.cab && !held()) { const m = f.cab; f.cab = null; f.bottles[m] = 'hand'; setHeld('b' + m); return msg(`把${ITEM_NAMES['b' + m]}拿出來。`); }
+          if (held() === 'rr') { f.rr = 'cab'; setHeld(null); return msg('把除鏽劑鎖進密封櫃，門關緊。'); }
+          if (f.rr === 'cab' && !held()) { f.rr = 'hand'; setHeld('rr'); return msg('把除鏽劑拿出來。'); }
           msg('密封櫃裡空空的，門關起來很緊。');
         },
       });
@@ -595,30 +530,17 @@ const LEVEL2 = {
       });
       if (f.desk === 'window') add(group(box(0.9, 0.02, 0.9, '#4E5A60', 0, 0, -1.4), box(0.16, 0.12, 0.06, '#8E5A3A', 0, 0.02, -1.0)), {
         id: 'trap', label: () => (held() === 'rr2030' ? '對鎖頭倒除鏽劑' : '地下室活板門'),
-        act: () => {
-          if (held() !== 'rr2030') return msg('活板門上的鎖頭鏽死了，扳不動。需要什麼東西把鏽弄掉。');
-          const kind = f.kinds[f.got];
-          if (kind === 'rr') return finish(true, '倒上除鏽劑，鎖頭鬆開了！你們從活板門逃到地下室，成功離開理化教室。');
-          f.spent[f.got] = true; f.got = null; setHeld(null);
-          crack(`倒下去……聞起來是${KIND_NAMES[kind]}，鎖頭一點變化都沒有，瓶子也空了——時間裂痕！\n當年收進密封櫃的，好像不是除鏽劑。`);
-        },
+        act: () => (held() === 'rr2030' ? finish(true, '倒上除鏽劑，鎖頭鬆開了！你們從活板門逃到地下室，成功離開理化教室。') : msg('活板門上的鎖頭鏽死了，扳不動。需要什麼東西把鏽弄掉。')),
       });
-      const leftOnShelf = Object.keys(f.bottles).filter((n) => f.bottles[n] === 'shelf' || f.bottles[n] === 'hand').length;
       add(box(0.4, 1.6, 1.2, '#8E9AA0', -3.75, 0, -1.2), {
         id: 'shelf', solid: { x: -3.75, z: -1.2, hw: 0.25, hd: 0.6 }, label: () => '舊藥品架',
-        act: () => msg(!leftOnShelf ? '架上什麼都沒有。' : deep() ? `架上有${leftOnShelf}個乾掉的空瓶，標籤早就爛光了，只看得到瓶底的編號。沒密封的東西，早就揮發光了。` : '架上有一個乾掉的空瓶，標籤寫著「除鏽劑」。沒密封，早就揮發光了。'),
+        act: () => msg(f.rr === 'shelf' || f.rr === 'hand' ? '架上有一個乾掉的空瓶，標籤寫著「除鏽劑」。沒密封，早就揮發光了。' : '架上什麼都沒有。'),
       });
       add(group(box(0.9, 1.7, 0.6, '#5B6670', 3.4, 0, -2.6), box(0.4, 0.22, 0.02, '#F4F1E6', 3.4, 1.25, -2.28)), {
         id: 'scab', solid: { x: 3.4, z: -2.6, hw: 0.45, hd: 0.3 }, label: () => '舊密封櫃',
         act: () => {
-          const n = f.cab;
-          if (n && f.spent[n]) return msg(`櫃子裡只剩一個空瓶，瓶底刻著「${n}」。`);
-          if (n && f.got !== n && !held()) {
-            f.got = n; f.gotRr = true; setHeld('rr2030');
-            return msg(deep() ? `櫃門早就壞了。裡面有一瓶密封得很好的藥瓶，瓶底刻著「${n}」，標籤看不清楚。` : '櫃門早就壞了。裡面有一瓶除鏽劑——密封得很好，還能用！');
-          }
-          const list = deep() ? '\n\n標籤旁邊還釘著一張泛黃的「1990 年理化教室藥品清冊」：\n' + Object.keys(f.kinds).map((k) => `　${k} 號瓶：${KIND_NAMES[f.kinds[k]]}`).join('\n') : '';
-          note('密封櫃上的資產清冊標籤', '學校財產編號 1990-0427\n品名：密封櫃\n原設定密碼：3141' + list + '\n\n（櫃子裡' + (f.got ? '已經空了）' : '空空的）'));
+          if (f.rr === 'cab' && !f.gotRr) { f.gotRr = true; setHeld('rr2030'); return msg('櫃門早就壞了。裡面有一瓶除鏽劑——密封得很好，還能用！'); }
+          note('密封櫃上的資產清冊標籤', '學校財產編號 1990-0427\n品名：密封櫃\n原設定密碼：3141\n\n（櫃子裡' + (f.gotRr ? '已經空了）' : '空空的）'));
         },
       });
       add(box(1, 2.1, 0.06, '#33454D', 2.8, 0, 2.96), { id: 'door', label: () => '教室門', act: () => msg('電子鎖斷電了，門完全打不開。得找別的路出去。') });
@@ -628,10 +550,9 @@ const LEVEL2 = {
 // =====================================================================
 // 第三關：巷口雜貨店 (侵蝕、自助付款、雙向密碼、封存)
 // =====================================================================
-const ANVIL = { corner: [2.2, 1.9, '牆角'], counter: [0.2, -1.0, '櫃台旁邊'], leak: [1.6, 0.4, '漏水的地方旁邊'] };
 const LEVEL3 = {
   name: '第三關・巷口雜貨店',
-  init() { S.f = { coin: 'safe', safeOpen: false, paid: false, rope: 'shelf', cap: 'counter', bucket: 'leak', gotRope: false, anvil: 'corner' }; },
+  init() { S.f = { coin: 'safe', safeOpen: false, paid: false, rope: 'shelf', cap: 'counter', bucket: 'leak', gotRope: false }; },
   reset(it) {
     const f = S.f;
     if (it === 'coin') f.coin = 'safe';
@@ -659,9 +580,7 @@ const LEVEL3 = {
         return held() === 'cap' ? '把膠囊放回櫃台' : '櫃台';
       },
       act: () => {
-        if (!old) return msg(f.cap === 'counter'
-          ? '櫃台上的灰塵有一指厚，收銀機早就不見了。\n灰塵裡有一圈圓形的鏽印，以前好像擺過一個鐵罐，也早就被清掉了。'
-          : '櫃台上的灰塵有一指厚。收銀機早就不見了。');
+        if (!old) return msg('櫃台上的灰塵有一指厚。收銀機早就不見了。');
         const h = held();
         if (f.cap === 'counter' && h === 'rope') { f.rope = 'cap'; setHeld(null); return msg('把麻繩捲好塞進時光膠囊，蓋子旋緊，密封得很好。'); }
         if (f.cap === 'counter' && !h) { f.cap = 'hand'; setHeld('cap'); return msg(f.rope === 'cap' ? '拿起時光膠囊（裡面裝著麻繩）。' : '一個空的時光膠囊鐵罐，蓋子是旋緊式的。'); }
@@ -733,17 +652,6 @@ const LEVEL3 = {
         id: 'corner', label: () => (held() === 'bucket' ? '把水桶放在門邊' : '門邊角落'),
         act: () => { if (held() === 'bucket') { f.bucket = 'corner'; setHeld(null); return msg('把水桶放在門邊。'); } msg('門邊的空角落。'); },
       });
-      // 鐵砧：很重，只能拖到三個位置之一（普通以上要拖到漏水處旁，2030 才有地方綁繩子）
-      add(group(box(0.45, 0.3, 0.3, '#3E474F', ANVIL[f.anvil][0], 0, ANVIL[f.anvil][1]), box(0.6, 0.12, 0.3, '#5B6670', ANVIL[f.anvil][0], 0.3, ANVIL[f.anvil][1])), {
-        id: 'anvil', solid: { x: ANVIL[f.anvil][0], z: ANVIL[f.anvil][1], hw: 0.3, hd: 0.18 },
-        label: () => (held() ? '鐵砧（手上拿著東西拖不動）' : `拖動鐵砧（現在在${ANVIL[f.anvil][2]}）`),
-        act: () => {
-          if (held()) return msg('鐵砧超重，要空出兩隻手才拖得動。');
-          const order = ['corner', 'counter', 'leak'];
-          f.anvil = order[(order.indexOf(f.anvil) + 1) % 3];
-          msg(`嘿咻——把鐵砧拖到${ANVIL[f.anvil][2]}。這東西重到大概沒人搬得走。`);
-        },
-      });
       // 地板暗格
       add(group(box(0.7, 0.02, 0.5, '#5E3E26', -3.3, 0, -2.4), box(0.08, 0.02, 0.08, '#B8862E', -3.0, 0.02, -2.4)), {
         id: 'stash',
@@ -781,18 +689,11 @@ const LEVEL3 = {
         add(group(box(1.0, 0.02, 1.0, '#111111', BX, 0, BZ), box(1.1, 0.03, 0.08, '#6B5A48', BX, 0, BZ - 0.55), box(1.1, 0.03, 0.08, '#6B5A48', BX, 0, BZ + 0.55)), {
           id: 'hole', solid: { x: BX, z: BZ, hw: 0.45, hd: 0.45 },
           label: () => (held() === 'rope2030' ? '綁好麻繩爬下去' : '地板上的大洞'),
-          act: () => {
-            if (held() !== 'rope2030') return msg('地板爛出一個大洞，下面就是倉庫，大概 3 公尺深。跳下去會受傷，需要一條繩子。');
-            if (!deep()) return finish(true, '麻繩綁在櫃台腳上，順著爬進倉庫，推開後門——你們逃出了巷口雜貨店！');
-            if (f.anvil !== 'leak') return msg('洞邊沒有夠結實的東西可以綁繩子。櫃台腳早就爛了，一拉就斷……\n要是洞旁邊有什麼很重的東西就好了。');
-            finish(true, '麻繩綁在洞邊那顆鏽成一塊的鐵砧上，順著爬進倉庫，推開後門——你們逃出了巷口雜貨店！');
-          },
+          act: () => (held() === 'rope2030'
+            ? finish(true, '麻繩綁在櫃台腳上，順著爬進倉庫，推開後門——你們逃出了巷口雜貨店！')
+            : msg('地板爛出一個大洞，下面就是倉庫，大概 3 公尺深。跳下去會受傷，需要一條繩子。')),
         });
       }
-      add(group(box(0.45, 0.3, 0.3, '#5E4E42', ANVIL[f.anvil][0], 0, ANVIL[f.anvil][1]), box(0.6, 0.12, 0.3, '#6E5E50', ANVIL[f.anvil][0], 0.3, ANVIL[f.anvil][1])), {
-        id: 'anvil', solid: { x: ANVIL[f.anvil][0], z: ANVIL[f.anvil][1], hw: 0.3, hd: 0.18 }, label: () => '生鏽的鐵砧',
-        act: () => msg('一個生鏽的大鐵砧，重得要命，鏽在地板上動都不動。'),
-      });
       add(box(0.7, 0.02, 0.5, '#6E6258', -3.3, 0, -2.4), {
         id: 'stash', label: () => '一塊鬆動的地板',
         act: () => {
@@ -858,7 +759,7 @@ const LEVEL4 = {
         id: 'spot' + i, label: () => (lit ? '被光照亮的牆' : '牆壁'),
         act: () => {
           if (old) return msg(lit ? '光照在牆上，壁紙上沒有什麼特別的。' : '貼著壁紙的牆。');
-          if (lit && i === 0) return note('夕陽照亮了牆上的刻字', deep() ? '「守燈人日誌：\n　每晚最後一趟巡塔走完，就收工下樓。\n　巡塔的時刻都記在值班室的桌上。」' : '「守燈人日誌：\n　每天 04:15 收工下樓。」');
+          if (lit && i === 0) return note('夕陽照亮了牆上的刻字', '「守燈人日誌：\n　每天 04:15 收工下樓。」');
           if (lit) return msg('夕陽照亮了這塊牆，上面什麼都沒有。');
           return msg(i === 0 ? '牆太暗了。湊近一看，好像刻著字，可是看不清楚……要是有光就好了。' : '很暗的牆。');
         },
@@ -903,7 +804,7 @@ const LEVEL4 = {
     add(group(cyl(0.3, 0.3, 0.7, old ? '#7A5032' : '#5E5040', 3.3, 0, -2.4, 10)), { solid: { x: 3.3, z: -2.4, hw: 0.3, hd: 0.3 } });
     if (old) {
       add(group(box(1.0, 0.75, 0.6, '#7E5133', -1.5, 0, 1.4), box(0.6, 0.02, 0.4, '#EADFC4', -1.5, 0.75, 1.4)), {
-        id: 'map', solid: { x: -1.5, z: 1.4, hw: 0.5, hd: 0.3 }, label: () => '海圖桌', act: () => (deep() ? note('海圖桌上的巡塔紀錄表', '值班：老陳\n\n　第二趟　01:00\n　第四趟　04:15\n　第一趟　21:30\n　第三趟　02:45\n\n（字跡潦草，順序是亂寫的）') : msg('海圖上標著附近的暗礁。值班表寫著守燈人的名字，沒寫時間。')),
+        id: 'map', solid: { x: -1.5, z: 1.4, hw: 0.5, hd: 0.3 }, label: () => '海圖桌', act: () => msg('海圖上標著附近的暗礁。值班表寫著守燈人的名字，沒寫時間。'),
       });
       trashBin(era, -3.5, 2.4);
     } else {
@@ -914,16 +815,10 @@ const LEVEL4 = {
 // =====================================================================
 // 第五關：老照相館 (雙向密碼、保存環境三選一、翻拍底片)
 // =====================================================================
-const heldNeg = () => (held() && S.f.negs && held() in S.f.negs ? held() : null);
-const negAt = (where) => Object.keys(S.f.negs || {}).filter((k) => S.f.negs[k] === where);
 const LEVEL5 = {
   name: '第五關・老照相館',
-  init() {
-    // 普通／困難：保險箱裡有兩條底片（A、B），只有一條拍到暗房門（每局隨機）；防潮箱只放得下一條
-    const negs = deep() ? { negA: 'safe', negB: 'safe' } : { neg: 'safe' };
-    S.f = { safeOpen: false, negs, good: deep() ? (Math.random() < 0.5 ? 'negA' : 'negB') : 'neg', power: false, scanned: false };
-  },
-  reset(it) { if (it in S.f.negs) S.f.negs[it] = 'safe'; },
+  init() { S.f = { safeOpen: false, neg: 'safe', power: false, scanned: false }; },
+  reset(it) { if (it === 'neg') S.f.neg = 'safe'; },
   goal(era) {
     return era === '1990'
       ? '你在 1990 的照相館，老闆在暗房沖照片。<br>・老闆的保險箱密碼你不知道<br>・底片很怕熱、也怕潮濕<br>・暗房現在不能開'
@@ -949,63 +844,36 @@ const LEVEL5 = {
     } else {
       add(group(box(0.6, 0.45, 0.02, '#E8E1CF', 0.1, 1.3, -2.93)), {
         id: 'clip', label: () => '看報紙剪報',
-        act: () => note('牆上的舊報紙剪報', '〈巷口照相館老闆專訪〉\n記者問保險箱放什麼，老闆笑說：\n「重要的底片啦。密碼？就是我第一台相機的型號數字。」'
-          + (deep() ? '\n「裡面最寶貝的一張，是我年輕時站在暗房門口拍的。」' : '') + '\n\n（剪報上的相機照片糊掉了，看不出型號）'),
+        act: () => note('牆上的舊報紙剪報', '〈巷口照相館老闆專訪〉\n記者問保險箱放什麼，老闆笑說：\n「重要的底片啦。密碼？就是我第一台相機的型號數字。」\n\n（剪報上的相機照片糊掉了，看不出型號）'),
       });
     }
     // 保險箱
     add(group(box(0.6, 0.7, 0.5, old ? '#3E474F' : '#5B4A3E', -3.6, 0, 1.6), box(0.1, 0.1, 0.03, old ? (f.safeOpen ? '#6cc08a' : '#C9473A') : '#3E332B', -3.28, 0.45, 1.6, old)), {
       id: 'safe', solid: { x: -3.6, z: 1.6, hw: 0.3, hd: 0.25 },
-      label: () => (!old ? '鏽開的保險箱' : !f.safeOpen ? '老闆的保險箱（上鎖）' : negAt('safe').length && !held() ? '拿出底片' : heldNeg() ? `把${ITEM_NAMES[held()]}放回保險箱` : '保險箱'),
+      label: () => (!old ? '鏽開的保險箱' : !f.safeOpen ? '老闆的保險箱（上鎖）' : f.neg === 'safe' && !held() ? '拿出底片' : held() === 'neg' ? '把底片放回保險箱' : '保險箱'),
       act: () => {
-        if (!old) return msg(negAt('safe').length
-          ? '保險箱的門鏽開了。裡面的底片泡過雨水又沾滿鏽，黏成一團，什麼都看不出來。'
-          : '保險箱的門鏽開了，裡面空空的。');
+        if (!old) return msg('保險箱的門鏽開了，裡面空空的。');
         if (!f.safeOpen) return pad('老闆的保險箱', '四位數密碼，你不知道……也許未來的人找得到線索？', '1968', () => { f.safeOpen = true; msg('喀——保險箱打開了！'); });
-        const inSafe = negAt('safe');
-        if (inSafe.length && !held()) {
-          const k = inSafe[0]; f.negs[k] = 'hand'; setHeld(k);
-          return msg(deep() ? `拿到${ITEM_NAMES[k]}，黑黑的看不清楚。${inSafe.length > 1 ? '保險箱裡還有另一條。' : ''}\n暗房在用，現在沒辦法沖洗。底片很怕熱、也怕潮濕。` : '拿到一條舊底片，黑黑的看不清楚。暗房在用，現在沒辦法沖洗。\n底片很怕熱、也怕潮濕。');
-        }
-        if (heldNeg()) { f.negs[held()] = 'safe'; setHeld(null); return msg('底片放回保險箱。（保險箱放幾十年會鏽開喔）'); }
+        if (f.neg === 'safe' && !held()) { f.neg = 'hand'; setHeld('neg'); return msg('拿到一條舊底片，黑黑的看不清楚。暗房在用，現在沒辦法沖洗。\n底片很怕熱、也怕潮濕。'); }
+        if (held() === 'neg') { f.neg = 'safe'; setHeld(null); return msg('底片放回保險箱。（保險箱放幾十年會鏽開喔）'); }
         msg('保險箱裡只剩帳本。');
       },
     });
-    // 燈箱：普通以上才有，用來分辨兩條底片拍的是什麼
-    if (old && deep()) {
-      add(group(box(0.6, 0.75, 0.45, '#7A5032', -2.7, 0, -2.7), box(0.45, 0.03, 0.32, '#FFF6DA', -2.7, 0.76, -2.7, true)), {
-        id: 'lightbox', solid: { x: -2.7, z: -2.7, hw: 0.3, hd: 0.23 },
-        label: () => (heldNeg() ? `把${ITEM_NAMES[held()]}對著燈箱看` : '燈箱'),
-        act: () => {
-          if (!heldNeg()) return msg('一個看底片用的燈箱，亮亮的。');
-          note(`把${ITEM_NAMES[held()]}對著燈箱`, held() === f.good
-            ? '黑白顛倒的小小畫面裡，一個年輕人站在一扇門前面。\n門上好像寫著什麼，可是太小了，看不清楚。'
-            : '黑白顛倒的小小畫面裡，一家四口並排坐在椅子上，像是全家福。');
-        },
-      });
-    }
     // 三個保存地點：窗台、抽屜、防潮箱
     const place = (id, where, x, z, w, h, d, c1990, c2030, name, ruin) => {
       add(box(w, h, d, old ? c1990 : c2030, x, 0, z), {
         id, solid: { x, z, hw: w / 2, hd: d / 2 },
-        label: () => (old ? (heldNeg() ? `把${ITEM_NAMES[held()]}放在${name}` : negAt(where).length && !held() ? `從${name}拿回底片` : name) : name),
+        label: () => (old ? (held() === 'neg' ? `把底片放在${name}` : f.neg === where && !held() ? `從${name}拿回底片` : name) : name),
         act: () => {
           if (old) {
-            if (heldNeg()) {
-              if (deep() && where === 'dry' && negAt('dry').length) return msg('防潮箱很小，只放得下一條底片。');
-              f.negs[held()] = where; setHeld(null); return msg(`把底片放在${name}。`);
-            }
-            if (negAt(where).length && !held()) { const k = negAt(where)[0]; f.negs[k] = 'hand'; setHeld(k); return msg(`拿回${ITEM_NAMES[k]}。`); }
+            if (held() === 'neg') { f.neg = where; setHeld(null); return msg(`把底片放在${name}。`); }
+            if (f.neg === where && !held()) { f.neg = 'hand'; setHeld('neg'); return msg('拿回底片。'); }
             return msg(where === 'dry' ? `防潮箱上貼著：「請隨時插電，不插電就跟普通箱子一樣。」${f.power ? '（現在有插電）' : '（現在沒插電）'}` : `一個${name}。`);
           }
-          const here = negAt(where);
-          if (!here.length) return msg(`${name}裡什麼都沒有。`);
+          if (f.neg !== where) return msg(`${name}裡什麼都沒有。`);
           if (where === 'dry' && f.power) {
-            if (here.includes(f.good)) {
-              f.scanned = true;
-              return note('用手機翻拍底片', '底片保存得很好！手機把它翻成正片：\n\n1975 年的照相館。年輕的老闆站在暗房門口，\n門上用粉筆寫著：「暗房密碼 5203」');
-            }
-            return note('用手機翻拍底片', '底片保存得很好！手機把它翻成正片：\n\n一家四口並排坐在照相館的椅子上，笑得很開心。\n（照片裡沒有暗房門。）');
+            f.scanned = true;
+            return note('用手機翻拍底片', '底片保存得很好！手機把它翻成正片：\n\n1975 年的照相館。年輕的老闆站在暗房門口，\n門上用粉筆寫著：「暗房密碼 5203」');
           }
           return msg(ruin);
         },
@@ -1036,8 +904,6 @@ const LEVEL5 = {
 LEVEL1.hint = () => {
   const f = S.f;
   if (f.pot !== 'sun') return '1990 的小樹苗在暗暗的角落。樹要曬太陽才長得大——把它搬到窗邊的陽光下。';
-  if (!f.drawerOpen && !f.cabUnlocked) return '1990 的木櫃夾層卡住了。2030 先打開自己的木櫃（密碼是「阿嬤的生日」，1990 的牆上有掛曆），夾層裡也許有線索。';
-  if (!f.drawerOpen) return '2030 木櫃夾層內側刻著木釘的順序。唸給 1990 聽，1990 照順序按木櫃正面的三根木釘。';
   if (!(f.cab.tin && f.sdInTin)) return '螺絲起子放幾十年會生鏽。1990 先把螺絲起子放進餅乾鐵盒，再把鐵盒收進木櫃。';
   if (!f.cabUnlocked) return '2030 的木櫃密碼是「阿嬤的生日」。1990 的牆上有一本掛曆。';
   if (!f.gotSd && !f.ventOpen) return '2030 打開木櫃，拿出鐵盒裡的螺絲起子。';
@@ -1047,12 +913,9 @@ LEVEL1.hint = () => {
 LEVEL2.hint = () => {
   const f = S.f;
   if (!f.cabUnlocked) return '1990 的密封櫃密碼，寫在 2030 那個舊密封櫃的資產清冊標籤上。';
-  const right = Object.keys(f.kinds).find((k) => f.kinds[k] === 'rr');
-  if (f.cab !== +right && f.got !== +right) return deep()
-    ? '架上的藥瓶標籤都糊掉了。2030 舊密封櫃旁釘著 1990 年的藥品清冊，查出除鏽劑是幾號瓶，告訴 1990；1990 把那一瓶鎖進密封櫃。'
-    : '除鏽劑沒密封會揮發。1990 從藥品架拿除鏽劑，鎖進密封櫃。';
+  if (f.rr !== 'cab' && !f.gotRr) return '除鏽劑沒密封會揮發。1990 從藥品架拿除鏽劑，鎖進密封櫃。';
   if (f.desk !== 'window') return '1990 的講桌壓著地下室的活板門。把講桌推到窗邊。';
-  if (f.got !== +right) return '2030 打開舊密封櫃，裡面有當年保存好的除鏽劑。';
+  if (!f.gotRr) return '2030 打開舊密封櫃，裡面有當年保存好的除鏽劑。';
   return '2030 拿除鏽劑去活板門，對生鏽的鎖頭倒下去！';
 };
 LEVEL3.hint = () => {
@@ -1062,15 +925,12 @@ LEVEL3.hint = () => {
   if (!(f.cap === 'stash' && f.rope === 'cap') && !f.gotRope) return '麻繩沒密封會爛掉。1990 把麻繩放進櫃台上的時光膠囊，再把膠囊藏進櫃台後面的地板暗格。';
   if (f.bucket === 'leak') return '1990 屋頂漏水，下面的水桶接著水。把水桶拿開放到門邊，讓水滴幾十年……';
   if (!f.gotRope) return '2030 掀開櫃台後面那塊鬆動的地板。';
-  if (deep() && f.anvil !== 'leak') return '2030 洞邊沒地方綁繩子。1990 的店裡有個很重的鐵砧，把它拖到漏水的地方旁邊，幾十年後它還會在那裡。';
   return '2030 拿著麻繩到地板的大洞，爬下去！';
 };
 LEVEL4.hint = () => {
   const f = S.f;
   if (f.clock !== '0415' && f.mirror !== 0) return '2030 左邊那塊暗暗的牆好像刻著字。2030 指揮 1990 轉動反射鏡，讓光照到左邊。';
-  if (f.clock !== '0415') return deep()
-    ? '牆上刻著守燈人「最後一趟巡塔後收工」。1990 的海圖桌上有巡塔紀錄表，找出最後一趟的時間，把老爺鐘撥到那裡（四位數）。'
-    : '牆上刻著守燈人收工的時間。1990 把老爺鐘撥到那個時間（四位數）。';
+  if (f.clock !== '0415') return '牆上刻著守燈人收工的時間。1990 把老爺鐘撥到那個時間（四位數）。';
   if (!f.gotHandle) return '2030 去打開老爺鐘的鐘箱。';
   if (f.handle !== 'lever') return '2030 把拉桿把手裝到門邊的拉桿上。';
   return '兩邊都站到拉桿前，語音倒數「3、2、1、拉！」一起拉下去。';
@@ -1078,8 +938,7 @@ LEVEL4.hint = () => {
 LEVEL5.hint = () => {
   const f = S.f;
   if (!f.safeOpen) return '保險箱密碼：2030 的剪報說是「老闆第一台相機的型號數字」，那台相機在 1990 左邊的架子上。';
-  if (deep() && f.negs[f.good] !== 'dry') return '保險箱裡有兩條底片，只有一條拍到暗房門（2030 的剪報有寫）。1990 把底片對著燈箱看，找出那一條，放進防潮箱（只放得下一條）。';
-  if (f.negs[f.good] !== 'dry' || !f.power) return '底片要放對地方：窗台會被太陽曬、抽屜會受潮。1990 把底片放進防潮箱，而且要插上電。';
+  if (f.neg !== 'dry' || !f.power) return '底片要放對地方：窗台會被太陽曬、抽屜會受潮。1990 把底片放進防潮箱，而且要插上電。';
   if (!f.scanned) return '2030 打開舊防潮箱，用手機翻拍底片。';
   return '照片裡的暗房門上寫著密碼。2030 到暗房門輸入。';
 };
@@ -1545,7 +1404,7 @@ const LEVEL9 = {
       add(box(GRID * cs + 0.3, GRID * cs + 0.3, 0.06, '#1B2A33', 0, oy - 0.15, -2.94));
       const hide = S.diff === 'hard';
       for (let y = 0; y < GRID; y++) for (let x = 0; x < GRID; x++) {
-        const rock = f.rocks.includes(x + ',' + y), isSub = x === f.sub[0] && y === f.sub[1], isExit = x === f.exit[0] && y === f.exit[1];
+        const rock = f.rocks.includes(x + ',' + y), isSub = x === f.sub[0] && y === f.sub[1], isExit = !!f.signal && x === f.exit[0] && y === f.exit[1];
         const far = hide && Math.max(Math.abs(x - f.sub[0]), Math.abs(y - f.sub[1])) > 2;
         const c = isSub ? '#F2B84B' : isExit ? '#4E9A4E' : far ? '#0A1F28' : rock ? '#3A2A22' : '#0E4A5A';
         add(box(cs - 0.03, cs - 0.03, 0.02, c, ox + x * cs, oy + (GRID - 1 - y) * cs, -2.9, !rock || isSub || isExit));
@@ -1560,7 +1419,7 @@ const LEVEL9 = {
             let r = '';
             for (let x = 0; x < GRID; x++) {
               const far = S.diff === 'hard' && Math.max(Math.abs(x - f.sub[0]), Math.abs(y - f.sub[1])) > 2;
-              r += x === f.sub[0] && y === f.sub[1] ? '🟨' : x === f.exit[0] && y === f.exit[1] ? '🟩' : far ? '⬛' : f.rocks.includes(x + ',' + y) ? '🪨' : '🟦';
+              r += x === f.sub[0] && y === f.sub[1] ? '🟨' : f.signal && x === f.exit[0] && y === f.exit[1] ? '🟩' : far ? '⬛' : f.rocks.includes(x + ',' + y) ? '🪨' : '🟦';
             }
             rows.push(r);
           }
@@ -1575,6 +1434,7 @@ const LEVEL9 = {
     add(box(3.0, 0.9, 0.7, '#4A3E38', 0, 0, -2.2), { solid: { x: 0, z: -2.2, hw: 1.5, hd: 0.35 } });
     const pbtn = (id, x, color, text, fn) => add(group(box(0.5, 0.1, 0.4, '#2A2420', x, 0.9, -2.05), cyl(0.15, 0.15, 0.1, color, x, 1.0, -2.05, 12)), { id, label: () => text, act: fn });
     const forward = () => {
+      if (f.engineOn === false) return msg('引擎關著，潛艇不會動。先請機房把引擎打開。');
       const [dx, dy] = DIRS[f.heading], nx = f.sub[0] + dx, ny = f.sub[1] + dy;
       if (nx < 0 || ny < 0 || nx >= GRID || ny >= GRID || f.rocks.includes(nx + ',' + ny)) return crack('碰！潛艇撞上岩石，整個船身震了一下。\n（請控制室重新確認方向）');
       f.sub = [nx, ny];
@@ -1674,6 +1534,430 @@ Object.assign(LEVEL6, { pal: { 1990: 'harbor90', 2030: 'harbor30' } });
 Object.assign(LEVEL8, { pal: { 1990: 'ctrl', 2030: 'flood' } });
 Object.assign(LEVEL9, { pal: { 1990: 'sonar', 2030: 'sub' }, style: { 1990: 'neon', 2030: 'flat' } });
 Object.assign(LEVEL10, { pal: { 1990: 'ctrlRed', 2030: 'reactor' }, style: 'toon' });
+// =====================================================================
+// v0.9：每關 3～5 個謎題、條件觸發機關、章節主線劇情、回憶物件
+//  ext() 在原本的關卡外面「加一層」：多的旗標、多的物件、出口條件 (gate)、劇情。
+//  出口條件：finish(true) 時如果 gate 沒過，只會顯示 gateMsg，不會結束。
+// =====================================================================
+const pickOne = (a) => a[Math.floor(Math.random() * a.length)];
+function ext(L, c) {
+  const oi = L.init, ob = L.build, oh = L.hint, orr = L.reset;
+  L.init = () => { oi.call(L); S.f.memento = false; if (c.init) c.init(S.f); };
+  L.build = (era) => { ob.call(L, era); c.build(era, S.f); };
+  L.reset = (it) => { if (orr) orr.call(L, it); if (c.reset) c.reset(it, S.f); };
+  // 提示：主線還沒做完先提示主線 (hintFirst 的關卡先提示新謎題)
+  L.hint = () => {
+    const f = S.f, extra = c.hint ? c.hint(f) : null;
+    if (extra && (c.hintFirst || c.mainDone(f))) return extra;
+    return oh.call(L);
+  };
+  Object.assign(L, { gate: c.gate, gateMsg: c.gateMsg, story: c.story, memento: c.memento });
+}
+const memo = (f, title, body) => { f.memento = true; note(title, body); };
+const wallNote = (id, x, y, z, w, h, color, label, act, rotY = 0) => {
+  const m = box(w, h, 0.03, color, x, y, z); m.rotation.y = rotY;
+  add(m, { id, label: () => label, act });
+};
+const sideWall = (id, side, y, z, w, h, color, label, act) => wallNote(id, side * 3.93, y, z, w, h, color, label, act, Math.PI / 2);
+
+// ---------------- 第一章：阿嬤留下的鑰匙 ----------------
+const STATIONS = ['88.5', '91.3', '95.7', '99.1', '103.5'];
+const PROGRAMS = ['夜來香時間', '早安台灣', '棒球轉播', '流行金曲榜', '空中英語'];
+ext(LEVEL1, {
+  memento: '阿嬤的錄音帶',
+  story: {
+    intro: '【第一章・阿嬤留下的鑰匙】\n2030 年，阿嬤過世了。她留給孫子一把舊鑰匙，和一張紙條：「把我們的故事找回來。」\n\n鑰匙一碰到老家的門，你們就被帶進了兩個年代——一邊是阿嬤還在的 1990 年，一邊是空蕩蕩的 2030 年。\n每一關都是阿嬤一生去過的地方，找回她留下的回憶，鑰匙才會帶你們走出去。',
+    outro: '門外吹進一陣風，收音機裡的阿嬤好像笑了一下。\n你們找回了第一樣回憶：「阿嬤的錄音帶」。',
+  },
+  init(f) { f.radio = 0; f.favSt = 1 + rnd(4); f.progSt = shuffle([0, 1, 2, 3, 4]); f.progSt[f.progSt.indexOf(f.favSt)] = f.progSt[0]; f.progSt[0] = f.favSt; f.houseNo = 100 + rnd(900); f.chainOpen = false; },
+  mainDone: (f) => f.ventOpen,
+  hint(f) {
+    if (!f.memento) return S.diff === 'hard' ? '2030 的收音機貼紙寫著阿嬤最愛的節目名稱；1990 的節目表有每個節目的頻道。對起來，2030 把收音機轉到那個頻道。' : '1990 桌上的節目表，阿嬤用紅筆圈了她最愛的節目。2030 把收音機轉到那個頻道（按一下換一台）。';
+    if (!f.chainOpen) return '收音機裡的阿嬤說：鏈條鎖的密碼是家裡的門牌號碼。1990 的大門旁邊看得到門牌。';
+    return null;
+  },
+  gate: (f) => f.chainOpen && f.memento,
+  gateMsg: (f) => (!f.chainOpen ? '鑰匙轉開了，可是門內還扣著一道鏈條鎖（三位數）。' : '阿嬤的鑰匙沒有反應……這個房間裡還有一樣阿嬤的回憶沒找到。'),
+  build(era, f) {
+    const old = era === '1990';
+    add(box(0.6, 0.6, 0.5, old ? '#7E5133' : '#6E5B4E', 2.6, 0, 2.4), { solid: { x: 2.6, z: 2.4, hw: 0.3, hd: 0.25 } });
+    if (old) {
+      add(box(0.3, 0.02, 0.4, '#F4ECDD', 2.6, 0.6, 2.4), {
+        id: 'guide', label: () => '看廣播節目表',
+        act: () => note('電視週刊・廣播節目表', PROGRAMS.map((p, i) => `FM ${STATIONS[f.progSt[i]]}　${p}`).join('\n') + (S.diff === 'hard' ? '' : '\n\n（「夜來香時間」被紅筆圈了起來，旁邊寫著：阿嬤每晚必聽）')),
+      });
+      add(box(0.3, 0.16, 0.02, '#2F6EC9', -1.6, 1.6, 2.93), { id: 'plate', label: () => '看門牌', act: () => note('大門旁的門牌', `中山路 ${f.houseNo} 號`) });
+    } else {
+      add(group(box(0.4, 0.25, 0.2, '#8E5A3A', 2.6, 0.6, 2.4), box(0.08, 0.08, 0.02, '#E8C547', 2.7, 0.75, 2.29)), {
+        id: 'radio', label: () => (f.memento ? '收音機（錄音帶已拿出）' : `收音機 FM ${STATIONS[f.radio]}（按一下轉台）`),
+        act: () => {
+          if (f.memento) return msg('收音機安靜下來了。');
+          f.radio = (f.radio + 1) % 5;
+          const sticker = S.diff === 'hard' ? '收音機上的貼紙：「阿嬤最愛《夜來香時間》」' : '收音機上的貼紙：「阿嬤最愛的節目」（名字褪色了）';
+          if (f.radio !== f.favSt) return msg(`轉到 FM ${STATIONS[f.radio]}……只有沙沙聲。\n${sticker}`);
+          memo(f, '收音機傳出阿嬤的聲音', '「乖孫，你終於轉到這一台了。\n大門的鏈條鎖，密碼就是我們家的門牌號碼。\n這卷錄音帶留給你，阿嬤的故事從這裡開始。」\n\n（收音機退出一卷錄音帶——你收下了「阿嬤的錄音帶」）');
+        },
+      });
+      add(box(0.3, 0.16, 0.02, '#4A5A60', -1.6, 1.6, 2.93), { id: 'plate', label: () => '門牌的位置', act: () => msg('門牌早就拆掉了，只剩兩個釘孔。') });
+      add(box(0.12, 0.3, 0.06, '#9AA8AD', -3.1, 1.1, 2.9), {
+        id: 'chain', label: () => (f.chainOpen ? '鏈條鎖（已打開）' : '門上的鏈條鎖'),
+        act: () => (f.chainOpen ? msg('鏈條鎖已經打開了。') : pad('門的鏈條鎖', '三位數密碼', String(f.houseNo), () => { f.chainOpen = true; msg('喀——鏈條鎖開了。'); })),
+      });
+    }
+  },
+});
+
+const ELEMENTS = [['氫', 'H', 1], ['氦', 'He', 2], ['鋰', 'Li', 3], ['碳', 'C', 6], ['氮', 'N', 7], ['氧', 'O', 8], ['鈉', 'Na', 11], ['鎂', 'Mg', 12], ['鋁', 'Al', 13], ['矽', 'Si', 14], ['硫', 'S', 16], ['氯', 'Cl', 17], ['鉀', 'K', 19], ['鈣', 'Ca', 20], ['鐵', 'Fe', 26], ['銅', 'Cu', 29], ['鋅', 'Zn', 30], ['銀', 'Ag', 47], ['金', 'Au', 79]];
+ext(LEVEL2, {
+  memento: '阿嬤的教師證',
+  story: {
+    intro: '鑰匙把你們帶到一間理化教室。黑板角落寫著一個熟悉的名字——這是阿嬤年輕時教書的學校。\n聽說她當年最寶貝的，是放在置物櫃裡的教師證。',
+    outro: '置物櫃裡的教師證照片上，年輕的阿嬤笑得好燦爛。\n你們找回了第二樣回憶：「阿嬤的教師證」。',
+  },
+  init(f) {
+    const pool = shuffle(ELEMENTS.map((_, i) => i)), n = S.diff === 'hard' ? 4 : 2;
+    f.ptCommon = pool[0]; f.pt90 = shuffle([pool[0], ...pool.slice(1, 1 + n)]); f.pt30 = shuffle([pool[0], ...pool.slice(1 + n, 1 + 2 * n)]); f.locker = false;
+  },
+  mainDone: (f) => f.gotRr && f.desk === 'window',
+  hint: (f) => (!f.memento ? '兩個年代牆上的週期表都被撕掉了幾格。比一比，兩張「都缺」的那一格，它的原子序就是 2030 老師置物櫃的密碼。' : null),
+  gate: (f) => f.memento,
+  gateMsg: '鎖頭鬆了，可是阿嬤的鑰匙還沒反應……教室裡還有一樣阿嬤的回憶。',
+  build(era, f) {
+    const old = era === '1990', list = old ? f.pt90 : f.pt30;
+    sideWall('ptable', -1, 1.0, 1.0, 1.2, 0.8, old ? '#F4ECDD' : '#CFC6B8', '看元素週期表', () =>
+      note(`${old ? '1990' : '2030'} 的元素週期表`, '有幾格被撕掉了：\n' + list.map((i) => `${ELEMENTS[i][2]} 號　${ELEMENTS[i][0]} ${ELEMENTS[i][1]}`).join('\n')));
+    if (!old) {
+      add(group(box(0.6, 1.8, 0.5, '#5B6670', -3.55, 0, 2.3), box(0.1, 0.1, 0.03, f.memento ? '#6cc08a' : '#C9473A', -3.3, 1.0, 2.04, true)), {
+        id: 'locker', solid: { x: -3.55, z: 2.3, hw: 0.3, hd: 0.25 }, label: () => (f.memento ? '老師的置物櫃（已打開）' : '老師的置物櫃（密碼鎖）'),
+        act: () => {
+          if (f.memento) return msg('置物櫃已經空了。');
+          const tip = S.diff === 'easy' ? '密碼＝兩張週期表（1990、2030 各一張）「都缺」的那一格的原子序。' : S.diff === 'hard' ? '櫃門上的便條：「我們都失去的那一格。」' : '櫃門上的便條：「兩張表都缺的那一格，就是我的密碼。」';
+          pad('老師的置物櫃', tip, String(ELEMENTS[f.ptCommon][2]), () => memo(f, '置物櫃打開了', '裡面有一張護貝的教師證，照片上的年輕老師就是阿嬤。\n背面寫著：「教書是我這輩子最快樂的事。」\n\n（你收下了「阿嬤的教師證」）'));
+        },
+      });
+    }
+  },
+});
+
+ext(LEVEL3, {
+  memento: '玻璃彈珠',
+  story: {
+    intro: '巷口的柑仔店，是阿嬤從小長大的家。\n阿嬤常說，她小時候最愛的就是店裡的彈珠汽水——喝完會把瓶子裡的彈珠偷偷藏起來。',
+    outro: '磚縫裡那顆彈珠還是亮晶晶的，就像阿嬤小時候藏起來的那樣。\n你們找回了第三樣回憶：「玻璃彈珠」。',
+  },
+  init(f) { f.price = 10 + rnd(16); f.marble = 'machine'; },
+  reset(it, f) { if (it === 'marble') f.marble = 'tray'; },
+  mainDone: (f) => f.gotRope && f.bucket !== 'leak',
+  hint(f) {
+    if (f.marble === 'machine') return '1990 的彈珠汽水販賣機要投「那年的價錢」，價目表在 2030 牆上的老照片裡。' + (S.diff === 'hard' ? '照片上寫的是一打的價錢，要自己換算一瓶。' : '');
+    if (!f.memento) return '1990 拿到彈珠後，塞進牆角那塊鬆動的磚縫——玻璃放幾十年都不會壞。2030 再去同一塊磚找。';
+    return null;
+  },
+  gate: (f) => f.memento,
+  gateMsg: '麻繩綁好了，可是阿嬤的鑰匙還沒反應……店裡還有一樣阿嬤的回憶。',
+  build(era, f) {
+    const old = era === '1990';
+    add(group(box(0.8, 1.5, 0.5, old ? '#D9372B' : '#6E5048', 1.4, 0, 2.6), box(0.5, 0.4, 0.02, old ? '#BFE8FF' : '#4A4440', 1.4, 0.9, 2.34)), {
+      id: 'soda', solid: { x: 1.4, z: 2.6, hw: 0.4, hd: 0.25 },
+      label: () => (!old ? '生鏽的販賣機' : f.marble === 'machine' ? '彈珠汽水販賣機（投錢）' : f.marble === 'tray' ? '拿出汽水瓶裡的彈珠' : '彈珠汽水販賣機'),
+      act: () => {
+        if (!old) return msg('販賣機早就壞了，裡面積滿灰塵。');
+        if (f.marble === 'tray') { if (held()) return msg('先把手上的東西放下。'); f.marble = 'hand'; setHeld('marble'); return msg('喝完彈珠汽水，把瓶子裡的玻璃彈珠拿了出來。'); }
+        if (f.marble !== 'machine') return msg('已經買過一瓶了。');
+        const tip = S.diff === 'easy' ? '投入一瓶彈珠汽水的價錢（價目表被撕掉了，2030 也許有老照片）' : '機器上寫著：「投入那年夏天的價錢，就會掉出彈珠汽水。」價目表被撕掉了。';
+        pad('彈珠汽水販賣機', tip, String(f.price), () => { f.marble = 'tray'; msg('咚！掉出一瓶冰涼的彈珠汽水。'); }, '機器把錢吐了出來——價錢不對。');
+      },
+    });
+    add(box(0.3, 0.2, 0.06, old ? '#9A4A3A' : '#6E5048', -3.9, 0.35, 0.3), {
+      id: 'brick',
+      label: () => (old ? (held() === 'marble' ? '把彈珠藏進磚縫' : f.marble === 'brick' && !held() ? '把彈珠拿出來' : '鬆動的磚頭') : '牆角的磚頭'),
+      act: () => {
+        if (old) {
+          if (held() === 'marble') { f.marble = 'brick'; setHeld(null); return msg('把彈珠塞進鬆動的磚縫，再把磚推回去。玻璃彈珠放多久都不會壞。'); }
+          if (f.marble === 'brick' && !held()) { f.marble = 'hand'; setHeld('marble'); return msg('把彈珠拿出來。'); }
+          return msg('牆角有一塊鬆動的磚頭，後面是個小縫。');
+        }
+        if (f.memento) return msg('磚縫已經空了。');
+        if (f.marble === 'brick') return memo(f, '磚縫裡的彈珠', '你推開那塊磚，裡面躺著一顆亮晶晶的玻璃彈珠。\n磚上刻著兩個小字：「阿嬤」。\n\n（你收下了「玻璃彈珠」）');
+        msg('磚頭後面只有灰塵。');
+      },
+    });
+    if (!old) sideWall('pricePhoto', -1, 1.3, -1.2, 0.6, 0.45, '#E8E1CF', '看老照片', () =>
+      note('牆上的老照片', S.diff === 'hard' ? `1990 年夏天的店門口，價目表上寫著：\n彈珠汽水　一打（12 瓶）${f.price * 12} 元` : `1990 年夏天的店門口，價目表上寫著：\n彈珠汽水　每瓶 ${f.price} 元`));
+  },
+});
+
+ext(LEVEL4, {
+  memento: '阿公的船長帽徽章',
+  story: {
+    intro: '海邊的燈塔，是阿公工作了一輩子的地方。\n阿嬤說，起霧的晚上，阿公會鳴霧笛，讓出海的船找到回家的路。',
+    outro: '工具箱裡的徽章擦得發亮，背面刻著阿公和阿嬤的名字。\n你們找回了第四樣回憶：「阿公的船長帽徽章」。',
+  },
+  init(f) { f.blasts = 3 + rnd(6); f.lamp = false; f.winOpen = false; f.horn = false; },
+  mainDone: (f) => f.handle === 'lever',
+  hint(f) {
+    if (!f.horn) return '霧笛要在對的條件下才會響：燈要亮、窗要開。1990 先開燈（左牆開關）、打開窗戶，再按霧笛。' + (S.diff === 'hard' ? '（2030 的阿公日誌有寫到這件事）' : '');
+    if (!f.memento) return '霧笛響了幾聲，就是 2030 阿公工具箱的密碼。';
+    return null;
+  },
+  gate: (f) => f.memento,
+  gateMsg: '門動了一下又卡住……阿嬤的鑰匙還在等最後一樣回憶。',
+  build(era, f) {
+    const old = era === '1990';
+    if (old) {
+      sideWall('lampSw', -1, 1.2, 0.5, 0.15, 0.25, f.lamp ? '#E8C547' : '#7C858C', `電燈開關（${f.lamp ? '開' : '關'}）`, () => { f.lamp = !f.lamp; msg(f.lamp ? '啪——燈亮了。' : '燈關掉了。'); });
+      if (f.lamp) add(box(0.5, 0.06, 0.5, '#FFF1C4', 0, 2.74, -1.0, true));
+      sideWall('winSh', 1, 1.0, 0.95, 0.3, 0.6, f.winOpen ? '#BFE8FF' : '#7A5032', `窗戶的把手（${f.winOpen ? '開著' : '關著'}）`, () => { f.winOpen = !f.winOpen; msg(f.winOpen ? '把窗戶推開，海風和霧一起灌進來。' : '把窗戶關上。'); });
+      add(group(box(0.5, 0.9, 0.4, '#3E474F', 3.5, 0, -1.7), cone(0.18, 0.4, '#B8862E', 3.5, 0.9, -1.7, 10)), {
+        id: 'horn', solid: { x: 3.5, z: -1.7, hw: 0.25, hd: 0.2 }, label: () => '按下霧笛',
+        act: () => {
+          if (f.lamp && f.winOpen) { f.horn = true; return msg(`嗚——${'——嗚'.repeat(f.blasts - 1)}——\n霧笛一共響了 ${f.blasts} 聲。`, 5000); }
+          const plate = S.diff === 'easy' ? '銅牌：「先開燈、再開窗，霧笛才會響。」' : S.diff === 'hard' ? '銅牌：「呼喚歸來的船。」' : '銅牌：「起霧的晚上，燈要亮、窗要開，霧笛才會呼喚歸來的船。」';
+          msg(`按下去，霧笛一點聲音都沒有。\n${plate}`, 4500);
+        },
+      });
+    } else {
+      add(group(box(0.6, 0.4, 0.4, '#6E5B4E', -3.4, 0, 0.6), box(0.1, 0.1, 0.03, f.memento ? '#6cc08a' : '#C9473A', -3.1, 0.25, 0.6, true)), {
+        id: 'gbox', solid: { x: -3.4, z: 0.6, hw: 0.3, hd: 0.2 }, label: () => (f.memento ? '阿公的工具箱（已打開）' : '阿公的工具箱（密碼鎖）'),
+        act: () => (f.memento ? msg('工具箱已經空了。') : pad('阿公的工具箱', '一位數密碼。蓋子上刻著：「霧笛響幾聲，就是答案。」', String(f.blasts), () => memo(f, '工具箱打開了', '裡面有一枚擦得發亮的船長帽徽章，背面刻著阿公和阿嬤的名字。\n\n（你收下了「阿公的船長帽徽章」）'))),
+      });
+      add(box(0.4, 0.15, 0.3, '#8E7454', 2.2, 0, -2.6), {
+        id: 'logbook', label: () => '看阿公的日誌',
+        act: () => note('阿公的燈塔日誌', '「那天霧很大，船遲遲沒回來。\n我按了霧笛，卻怎麼都不響——\n後來才想起來，那晚燈沒開、窗也關著。」'),
+      });
+    }
+  },
+});
+
+ext(LEVEL5, {
+  memento: '結婚照',
+  story: {
+    intro: '老照相館。阿公阿嬤的結婚照，就是在這裡拍的。\n可是家裡的相簿，偏偏少了那一張。',
+    outro: '相簿最後一頁多了一張泛黃的照片：椅子上的新娘，就是年輕的阿嬤。\n你們找回了第五樣回憶：「結婚照」。',
+  },
+  init(f) { f.chair = 'side'; f.slamp = false; f.photo = false; },
+  mainDone: (f) => f.scanned,
+  hint(f) {
+    if (!f.photo) return '1990 的相機要「椅子放在地上的 ✕、燈打開」才拍得出來（拍照須知' + (S.diff === 'hard' ? '只在 2030 的牆上' : '貼在 1990 的牆上') + '）。按下遙控快門。';
+    if (!f.memento) return '1990 拍好的照片會留在 2030 桌上的相簿裡，去翻翻看。';
+    return null;
+  },
+  gate: (f) => f.memento,
+  gateMsg: '暗房門開了一條縫……阿嬤的鑰匙還在等一樣回憶。',
+  build(era, f) {
+    const old = era === '1990';
+    if (old) {
+      add(group(box(0.6, 0.02, 0.08, '#C9473A', 0.3, 0, 1.0, true), box(0.08, 0.02, 0.6, '#C9473A', 0.3, 0, 1.0, true)));
+      const [cx, cz] = f.chair === 'mark' ? [0.3, 1.0] : [-0.9, 1.7];
+      add(group(box(0.45, 0.45, 0.45, '#8E2A20', cx, 0, cz), box(0.45, 0.5, 0.08, '#8E2A20', cx, 0.45, cz + 0.2)), {
+        id: 'chair', label: () => (f.chair === 'mark' ? '把椅子搬回旁邊' : '搬動紅色的椅子'),
+        act: () => { f.chair = f.chair === 'mark' ? 'side' : 'mark'; msg(f.chair === 'mark' ? '把椅子搬到地上的紅色 ✕ 上。' : '把椅子搬回旁邊。'); },
+      });
+      add(group(cyl(0.03, 0.05, 1.5, '#3E3A36', 1.6, 0, 0.4, 6), cone(0.25, 0.3, f.slamp ? '#FFF1C4' : '#7C858C', 1.6, 1.5, 0.4, 8)), {
+        id: 'slamp', label: () => `攝影燈（${f.slamp ? '開' : '關'}）`, act: () => { f.slamp = !f.slamp; msg(f.slamp ? '攝影燈亮了，整間照相館都亮起來。' : '攝影燈關掉了。'); },
+      });
+      add(group(cyl(0.03, 0.03, 1.0, '#3E3A36', 1.1, 0, -0.7, 6), box(0.15, 0.08, 0.1, '#D9372B', 1.1, 1.0, -0.7)), {
+        id: 'shutter', label: () => (f.photo ? '遙控快門（已拍好）' : '按下遙控快門'),
+        act: () => {
+          if (f.photo) return msg('照片已經拍好了。');
+          if (!f.slamp) return msg('喀嚓——太暗了，底片上一片黑。');
+          if (f.chair !== 'mark') return msg('喀嚓——鏡頭裡空空的，什麼都沒拍到。');
+          f.photo = true; msg('喀嚓！閃光一亮，照片拍好了。老闆說洗好會收進相簿。');
+        },
+      });
+      if (S.diff !== 'hard') add(box(0.6, 0.5, 0.03, '#F4ECDD', -1.2, 1.4, 2.93), { id: 'rules', label: () => '看拍照須知', act: () => note('拍照須知', '一、客人請坐在地上的 ✕ 上\n二、攝影燈一定要打開\n三、準備好再按快門') });
+    } else {
+      add(group(box(0.8, 0.7, 0.5, '#5E5040', -1.0, 0, 1.2), box(0.35, 0.05, 0.28, '#8E2A20', -1.0, 0.7, 1.2)), {
+        id: 'album', solid: { x: -1.0, z: 1.2, hw: 0.4, hd: 0.25 }, label: () => '翻開相簿',
+        act: () => {
+          if (f.memento) return msg('相簿最後一頁是阿嬤年輕時的照片。');
+          if (f.photo) return memo(f, '相簿的最後一頁', '最後一頁多了一張泛黃的照片：照相館的紅椅子上，坐著穿白紗的年輕新娘——就是阿嬤。\n\n（你收下了「結婚照」）');
+          msg('相簿的最後一頁空著，只寫了一行字：「1990，我們在這裡拍了一張照片。」');
+        },
+      });
+      if (S.diff === 'hard') add(box(0.6, 0.5, 0.03, '#CFC6B8', -1.2, 1.4, 2.93), { id: 'rules', label: () => '看褪色的拍照須知', act: () => note('褪色的拍照須知', '一、客人請坐在地上的 ✕ 上\n二、攝影燈一定要打開') });
+    }
+  },
+});
+
+const MEMS = [['玻璃彈珠', '七歲，在家裡的雜貨店', '小時候，我最愛喝店裡的彈珠汽水。'], ['教師證', '二十三歲，第一次站上講台', '我在學校教理化，學生都叫我小老師。'], ['結婚照', '二十六歲，在照相館', '那天我穿著白紗，坐在紅色的椅子上。'], ['船長帽徽章', '四十歲，燈塔的霧夜', '霧很大的晚上，我陪他在燈塔等船回來。'], ['錄音帶', '七十歲，每天晚上', '老了以後，我每晚都聽收音機，錄下想對孫子說的話。']];
+ext(LEVEL6, {
+  memento: '阿嬤的回憶盒',
+  story: {
+    intro: '最後一站，是阿公出海的港邊倉庫。\n阿嬤的鑰匙在這裡發出微光——她最後的禮物，是一個要照順序放進回憶的盒子。',
+    outro: '回憶盒打開了。裡面是一封阿嬤寫給孫子的信：\n「謝謝你陪我走完這一趟。這些回憶，現在是你的了。」\n\n【第一章完】',
+  },
+  init(f) { f.layout = shuffle([0, 1, 2, 3, 4]); f.placed = []; f.boxOpen = false; f.diaryOrder = shuffle([0, 1, 2, 3, 4]); },
+  mainDone: (f) => f.gotCrank && f.oiled,
+  hint: (f) => (!f.boxOpen ? '2030 桌上有前五關找回的回憶和一個盒子，要照阿嬤一生的先後順序放進去。順序寫在 1990 同一張桌上的日記裡。' : null),
+  gate: (f) => f.boxOpen,
+  gateMsg: '鏈條上掛著一個小鎖頭，刻著：「先把我們的回憶收好，再走。」',
+  build(era, f) {
+    const old = era === '1990';
+    add(box(2.0, 0.75, 0.6, old ? '#7E5133' : '#5E5040', -1.4, 0, 0.9), { solid: { x: -1.4, z: 0.9, hw: 1.0, hd: 0.3 } });
+    if (old) {
+      add(box(0.35, 0.06, 0.28, '#8E2A20', -1.4, 0.75, 0.9), {
+        id: 'diary', label: () => '看阿嬤的日記',
+        act: () => {
+          if (S.diff === 'easy') return note('阿嬤的日記', '我這一生最珍惜的五樣東西，照時間是：\n' + MEMS.map((m) => m[0]).join(' → '));
+          if (S.diff === 'hard') return note('阿嬤的日記（散落的幾頁）', f.diaryOrder.map((i) => `「${MEMS[i][2]}」（${MEMS[i][1].split('，')[0]}）`).join('\n'));
+          return note('阿嬤的日記', MEMS.map((m) => `${m[1]}：${m[2]}`).join('\n'));
+        },
+      });
+      return;
+    }
+    add(group(box(0.4, 0.3, 0.3, f.boxOpen ? '#E8C547' : '#8E5A3A', -0.6, 0.75, 0.9)), { id: 'mbox', label: () => (f.boxOpen ? '打開的回憶盒' : `回憶盒（已放 ${f.placed.length}/5）`), act: () => msg(f.boxOpen ? '盒子裡是阿嬤寫給你的信。' : '盒蓋上刻著：「照我一生的順序，把回憶放回來。」放錯會全部彈出來。') });
+    f.layout.forEach((mi, slot) => {
+      if (f.placed.includes(mi)) return;
+      const x = -2.2 + slot * 0.3;
+      add(box(0.18, 0.12, 0.18, ['#BFE8FF', '#F4ECDD', '#E8E1CF', '#B8862E', '#3B3632'][mi], x, 0.75, 0.9), {
+        id: 'mem' + mi, label: () => `把「${MEMS[mi][0]}」放進回憶盒`,
+        act: () => {
+          if (f.boxOpen) return;
+          if (mi !== f.placed.length) { f.placed = []; return crack('盒子喀的一聲，把放進去的東西全部彈了出來——順序不對！'); }
+          f.placed.push(mi);
+          if (f.placed.length < 5) return msg(`把「${MEMS[mi][0]}」輕輕放進盒子。（${f.placed.length}/5）`);
+          f.boxOpen = true; memo(f, '回憶盒打開了', '五樣回憶都回到盒子裡，盒蓋自己彈開了。\n裡面有一封信：「乖孫，謝謝你陪我走完這一趟。」\n\n（鏈條上的小鎖頭也跟著鬆開了）');
+        },
+      });
+    });
+  },
+});
+
+// ---------------- 第二章：深藍七號事故 ----------------
+const CHANNELS = [['藍', '#3F6EC9'], ['綠', '#4E9A4E'], ['紅', '#D9372B'], ['黃', '#E8C547']];
+ext(LEVEL7, {
+  memento: '站長的錄音片段',
+  story: {
+    intro: '【第二章・深藍七號事故】\n深海研究站「深藍七號」突然進水。你們一個被困在控制室、一個在機房。\n逃生之前，你們會慢慢發現：這不是意外。',
+    outro: '逃生艙浮上海面前，你反覆聽著那段錄音：「核心溫度超標三天了，報告先別送出去。」\n你們帶出了第一份證據：「站長的錄音片段」。',
+  },
+  init(f) { f.channel = 0; f.emerg = rnd(4); f.auth = String(100 + rnd(900)); f.authOk = false; },
+  mainDone: (f) => f.podReady,
+  hint(f) {
+    if (!f.memento) return '控制室左牆的廣播系統，要「有電」而且切到「緊急頻道」才收得到東西。' + (S.diff === 'hard' ? '緊急頻道的顏色＝控制室天花板警示燈的顏色（機房的海報有寫）。' : '緊急頻道是什麼顏色，寫在機房的海報上。');
+    if (!f.authOk) return '廣播裡的站長說出了授權碼，控制室在右牆的授權面板輸入。';
+    return null;
+  },
+  gate: (f) => f.authOk,
+  gateMsg: '螢幕跳出：「釋放逃生艙需要站長授權碼」。廣播系統裡也許有線索。',
+  build(era, f) {
+    if (era === '1990') {
+      const [cn, cc] = CHANNELS[f.channel];
+      sideWall('bcast', -1, 1.0, 0.2, 0.6, 0.5, cc, `廣播系統（${cn}色頻道・按一下切換）` + (S.diff === 'easy' ? `　緊急頻道是${CHANNELS[f.emerg][0]}色` : ''), () => {
+        if (f.memento) return msg('錄音已經播完了。');
+        f.channel = (f.channel + 1) % 4;
+        if (!f.power) return msg(`切到${CHANNELS[f.channel][0]}色頻道……沒電，廣播系統沒反應。`);
+        if (f.channel !== f.emerg) return msg(`切到${CHANNELS[f.channel][0]}色頻道……沙沙沙，只有雜訊。`);
+        memo(f, '緊急頻道傳出一段被刪掉的錄音', `站長：「……核心溫度已經超標三天了，報告先別送出去。\n……如果有人聽到這段，釋放逃生艙的授權碼是 ${f.auth}。」\n\n（你取得了證據：「站長的錄音片段」）`);
+      });
+      sideWall('authPanel', 1, 1.2, 1.6, 0.4, 0.4, f.authOk ? '#4E9A4E' : '#22303A', f.authOk ? '授權面板（已授權）' : '逃生艙授權面板', () =>
+        (f.authOk ? msg('已經授權了。') : pad('逃生艙釋放授權', '三位數授權碼', f.auth, () => { f.authOk = true; msg('授權成功。現在可以釋放逃生艙了。'); })));
+      add(box(0.4, 0.1, 0.4, CHANNELS[f.emerg][1], 0, 2.72, -0.8, true));
+    } else {
+      sideWall('poster', -1, 1.4, 1.4, 0.7, 0.5, '#F4F1E6', '看牆上的海報', () =>
+        note('緊急應變海報', S.diff === 'hard' ? '緊急廣播頻道＝控制室天花板警示燈的顏色。\n只有供電時才收得到。' : `緊急廣播頻道：${CHANNELS[f.emerg][0]}色。\n只有供電時才收得到。`));
+    }
+  },
+});
+
+const STAFF = ['王', '陳', '林', '吳', '黃', '張'];
+ext(LEVEL8, {
+  memento: '值班表',
+  story: {
+    intro: '你們逃到下層艙段，卻發現事故紀錄被人刪掉了一半。\n凌晨兩點，是誰關掉了警報？',
+    outro: '值班表上的名字被圈了起來——警報是被人「故意」關掉的。\n你們帶出了第二份證據：「值班表」。',
+  },
+  init(f) {
+    const names = shuffle(STAFF).slice(0, 4), nums = shuffle([...Array(89)].map((_, i) => i + 11)).slice(0, 4);
+    f.staff = names.map((n, i) => [n, nums[i]]); f.culprit = rnd(4); f.decoy = (f.culprit + 1 + rnd(3)) % 4; f.badgeOk = false;
+  },
+  mainDone: (f) => f.flood.every((x) => !x),
+  hint: (f) => (!f.badgeOk ? '控制室有前半張紀錄（哪個站台在 02:00 關了警報），機房有後半張值班表（每個站台是誰、員工編號）。對起來，機房在門邊的身分鎖輸入那個人的編號。' : null),
+  gate: (f) => f.badgeOk,
+  gateMsg: '水密門開了，可是旁邊的身分鎖還亮著紅燈：「請輸入事故當班人員的員工編號」。',
+  build(era, f) {
+    const st = 'ABCD';
+    if (era === '1990') {
+      sideWall('logA', -1, 1.3, 0.5, 0.7, 0.6, '#F4F1E6', '看事故紀錄（前半張）', () =>
+        note('事故紀錄（前半張，後半被撕掉了）', `01:30　${st[(f.culprit + 2) % 4]} 站例行巡檢\n` + (S.diff === 'hard' ? `02:00　有人試圖從 ${st[f.decoy]} 站關閉警報（失敗）\n` : '') + `02:00　警報被手動關閉——操作來自 ${st[f.culprit]} 站\n02:20　${st[f.decoy]} 站回報漏水\n03:00　系統自動重啟`));
+    } else {
+      sideWall('logB', -1, 1.3, 0.5, 0.7, 0.6, '#F4F1E6', '看值班表（後半張）', () =>
+        note('值班表（後半張）', f.staff.map(([n, num], i) => `${st[i]} 站：${n}技師　員工編號 ${num}`).join('\n')));
+      add(box(0.25, 0.3, 0.06, f.badgeOk ? '#4E9A4E' : '#C9473A', -3.3, 1.1, 2.88, true), {
+        id: 'idlock', label: () => (f.badgeOk ? '身分鎖（已解除）' : '門邊的身分鎖'),
+        act: () => (f.badgeOk ? msg('身分鎖已經解除了。') : pad('身分鎖', '輸入事故當班人員的員工編號（兩位數）', String(f.staff[f.culprit][1]), () => { f.badgeOk = true; memo(f, '身分鎖解除了', `螢幕顯示：「${f.staff[f.culprit][0]}技師——02:00 手動關閉警報（上級指示）」。\n\n（你取得了證據：「值班表」）`); })),
+      });
+    }
+  },
+});
+
+const DEPTHS = [50, 100, 150, 200];
+ext(LEVEL9, {
+  memento: '救援信號紀錄',
+  hintFirst: true,
+  story: {
+    intro: '研究站撐不住了，你們搭上救生潛艇。\n外面一片漆黑——只有收到救援浮標的信號，才知道該往哪裡開。',
+    outro: '潛艇鑽出最後一道岩縫，救援船的探照燈照了過來。\n你們帶出了第三份證據：「救援信號紀錄」——上面記著，救援請求在事故前就被人取消過一次。',
+  },
+  init(f) { f.engineOn = true; f.depth = 0; f.need = 1 + rnd(3); f.signal = false; },
+  hint(f) {
+    if (!f.signal) return '聲納上還看不到出口：要先收到救援信號。條件寫在機房的潛艇手冊：' + (S.diff === 'hard' ? '深度要在「溫躍層」（深度寫在控制室的圖例上）' : '深度要對') + '，而且引擎要先關掉，控制室再按接收器。收到後記得把引擎打開才能開。';
+    return null;
+  },
+  gate: (f) => f.signal,
+  gateMsg: '這裡什麼都沒有……救援船不知道你們在哪。要先收到救援信號。',
+  build(era, f) {
+    if (era === '1990') {
+      sideWall('signalRx', -1, 1.0, 0.2, 0.5, 0.4, f.signal ? '#4E9A4E' : '#22303A', f.signal ? '救援信號（已收到）' : '救援信號接收器', () => {
+        if (f.signal) return msg('救援座標已經收到了。');
+        if (f.engineOn) return msg('只聽得到引擎的轟隆聲，什麼信號都收不到。');
+        if (f.depth !== f.need) return msg(`沙沙……信號太弱了。（目前深度 ${DEPTHS[f.depth]} 公尺）`);
+        f.signal = true; memo(f, '收到救援信號！', '救援浮標的座標傳進來了，聲納地圖上出現了綠色的出口。\n紀錄上還有一行：「救援請求曾於 02:05 被取消」。\n\n（你取得了證據：「救援信號紀錄」）\n記得請機房把引擎打開才能開。');
+      });
+      if (S.diff === 'hard') add(box(0.6, 0.3, 0.03, '#F4F1E6', -2.2, 0.3, -2.92), { id: 'legend', label: () => '看聲納圖例', act: () => note('聲納圖例', `溫躍層深度：${DEPTHS[f.need]} 公尺`) });
+    } else {
+      sideWall('engineSw', -1, 1.2, 0.8, 0.3, 0.3, f.engineOn ? '#4E9A4E' : '#C9473A', `引擎開關（${f.engineOn ? '開' : '關'}）`, () => { f.engineOn = !f.engineOn; msg(f.engineOn ? '轟——引擎啟動了。' : '引擎關掉了，四周突然安靜下來。'); });
+      sideWall('depthDial', -1, 1.2, -0.6, 0.3, 0.3, '#3F6EC9', `深度調整（目前 ${DEPTHS[f.depth]} 公尺・按一下換）`, () => { f.depth = (f.depth + 1) % 4; msg(`潛艇調整到 ${DEPTHS[f.depth]} 公尺深。`); });
+      add(box(0.6, 0.45, 0.03, '#F4F1E6', -1.6, 1.4, 2.93), {
+        id: 'manual', label: () => '看潛艇手冊',
+        act: () => note('潛艇手冊・救援信號', (S.diff === 'hard' ? '救援浮標的信號只在「溫躍層」的深度收得到。' : `救援浮標的信號只在 ${DEPTHS[f.need]} 公尺深收得到。`) + '\n引擎的噪音會蓋過信號——接收時請先關掉引擎。'),
+      });
+    }
+  },
+});
+
+const EVID = [['值班表', '02:00'], ['站長的錄音片段', null], ['救援信號紀錄', '04:05']];
+ext(LEVEL10, {
+  memento: '黑盒子',
+  story: {
+    intro: '最後的危機：核心溫度一路飆升。\n站長隱瞞了三天的過熱警告，現在只剩你們能阻止熔毀——也只剩你們能把真相帶出去。',
+    outro: '排熱成功，研究站安靜下來。黑盒子跟著你們浮上海面，裡面的證據，讓站長隱瞞的真相再也藏不住。\n\n【第二章完】',
+  },
+  init(f) { f.evOrder = shuffle([0, 1, 2]); f.evPlaced = []; f.boxSealed = false; },
+  mainDone: (f) => f.injected,
+  hint: (f) => (!f.boxSealed ? '把三份證據照「發生的時間先後」放進控制室的黑盒子。錄音的時間標記壞了，機房的系統紀錄有寫站長最後一次登入的時間。' : null),
+  gate: (f) => f.boxSealed,
+  gateMsg: '排熱前，先把證據封進黑盒子——不然真相會跟著研究站一起沉下去。',
+  build(era, f) {
+    if (era === '1990') {
+      add(box(0.4, 0.3, 0.3, f.boxSealed ? '#E8C547' : '#E07A2F', 2.6, 0.85, -2.0), { id: 'blackbox', label: () => (f.boxSealed ? '黑盒子（已封存）' : `黑盒子（已放 ${f.evPlaced.length}/3）`), act: () => msg(f.boxSealed ? '證據都封存好了。' : '照時間先後把證據放進來，放錯會全部退出來。') });
+      f.evOrder.forEach((ei, slot) => {
+        if (f.evPlaced.includes(ei)) return;
+        sideWall('ev' + ei, -1, 1.4, -0.4 + slot * 0.6, 0.4, 0.3, '#F4F1E6', `把「${EVID[ei][0]}」放進黑盒子（時間：${EVID[ei][1] || '標記壞了'}）`, () => {
+          if (f.boxSealed) return;
+          if (ei !== f.evPlaced.length) { f.evPlaced = []; return crack('黑盒子嗶嗶叫，把證據全部退了出來——時間順序不對！'); }
+          f.evPlaced.push(ei);
+          if (f.evPlaced.length < 3) return msg(`「${EVID[ei][0]}」放進黑盒子了。（${f.evPlaced.length}/3）`);
+          f.boxSealed = true; memo(f, '黑盒子封存完成', '三份證據依照時間封進黑盒子：\n02:00 警報被關 → 02:14 站長的錄音 → 04:05 救援信號。\n\n現在可以排熱了。');
+        });
+      });
+    } else {
+      sideWall('elog', -1, 1.3, 0.5, 0.6, 0.45, '#F4F1E6', '看系統紀錄', () => note('核心機房系統紀錄', '02:14　站長帳號最後一次登入\n02:15　站長帳號被鎖定\n04:05　外部救援信號'));
+    }
+  },
+});
+
 const LEVELS = { 1: LEVEL1, 2: LEVEL2, 3: LEVEL3, 4: LEVEL4, 5: LEVEL5, 6: LEVEL6, 7: LEVEL7, 8: LEVEL8, 9: LEVEL9, 10: LEVEL10 };
 
 // =====================================================================
@@ -1682,7 +1966,7 @@ const LEVELS = { 1: LEVEL1, 2: LEVEL2, 3: LEVEL3, 4: LEVEL4, 5: LEVEL5, 6: LEVEL
 //  之後要放進 Discord 活動時，只要換掉這一塊 (Net)。
 // =====================================================================
 const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-const Net = { role: null, peers: new Map(), pending: null, seq: 0, players: [], room: null };
+const Net = { role: null, peers: new Map(), pending: null, seq: 0, players: [] };
 
 async function encode(obj) {
   const s = new Blob([JSON.stringify(obj)]).stream().pipeThrough(new CompressionStream('deflate-raw'));
@@ -1741,98 +2025,6 @@ async function guestJoin(code) {
   return encode({ sdp: pc.localDescription });
 }
 
-// ---- 房間碼（PeerJS 公開配對服務）----
-//  房主用「kdroom-房間碼」這個名字登記在 PeerJS 的免費公開伺服器上，朋友用房間碼找到房主。
-//  配對服務只負責牽線；連上之後資料一樣是玩家之間直接傳（WebRTC），不經過任何伺服器。
-//  服務掛掉時，上面的「複製貼上連線碼」仍然可以用。
-const ROOM_PREFIX = 'kdroom-';
-const ROOM_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'; // 拿掉 0 O 1 I L，避免看錯
-let PeerLib = null;
-async function loadPeer() {
-  if (!PeerLib) PeerLib = (await import('https://cdn.jsdelivr.net/npm/peerjs@1.5.4/+esm')).Peer;
-  return PeerLib;
-}
-function newRoomCode() { let s = ''; for (let i = 0; i < 4; i++) s += ROOM_CHARS[Math.floor(Math.random() * ROOM_CHARS.length)]; return s; }
-function cleanRoomCode(s) { return String(s || '').toUpperCase().replace(/[^0-9A-Z]/g, '').slice(0, 4); }
-function roomLink(code) { return location.origin + location.pathname + '#room=' + code; }
-// 把 PeerJS 的連線包成跟 RTCDataChannel 一樣的介面，send() / broadcast() 不用改
-function connAdapter(conn) { return { get readyState() { return conn.open ? 'open' : 'closed'; }, send: (s) => conn.send(s), close: () => conn.close() }; }
-function wireConn(id, conn, onReady) {
-  conn.on('data', (d) => { try { onNet(id, typeof d === 'string' ? JSON.parse(d) : d); } catch (err) { console.error(err); } });
-  conn.on('close', () => { if (Net.peers.has(id)) onClose(id); });
-  conn.on('error', (e) => console.warn('連線錯誤', e));
-  if (conn.open) onReady(); else conn.on('open', onReady);
-}
-function peerErrorText(e) {
-  const t = e && e.type;
-  if (t === 'peer-unavailable') return '找不到這個房間碼。請確認 4 個字有沒有打錯，以及房主的開房畫面還開著。';
-  if (t === 'network' || t === 'server-error' || t === 'socket-error' || t === 'socket-closed') return '配對服務暫時連不上。請改用下方「連線碼（舊方法）」。';
-  if (t === 'browser-incompatible') return '這個瀏覽器不支援連線，請換 Chrome 或 Edge。';
-  return '連線失敗（' + (t || (e && e.message) || '未知') + '）。可以改用下方「連線碼（舊方法）」。';
-}
-
-async function hostOpenRoom() {
-  if (Net.room) return;
-  Net.room = { code: null, peer: null };
-  $('hRoomStatus').textContent = '準備房間碼中…';
-  let Peer;
-  try { Peer = await loadPeer(); }
-  catch (e) { Net.room = null; $('hRoomStatus').textContent = '房間碼功能載入失敗，請改用下方的連線碼。'; $('hOld').open = true; return; }
-  for (let tries = 0; tries < 5; tries++) {
-    const code = newRoomCode();
-    const ok = await new Promise((res) => {
-      const peer = new Peer(ROOM_PREFIX + code);
-      const timer = setTimeout(() => { peer.destroy(); res('timeout'); }, 12000);
-      peer.on('open', () => { clearTimeout(timer); Net.room = { code, peer }; res('ok'); });
-      peer.on('error', (e) => {
-        if (Net.room && Net.room.peer === peer) { console.warn('配對服務錯誤', e); return; }
-        clearTimeout(timer); peer.destroy(); res(e.type === 'unavailable-id' ? 'taken' : 'fail');
-      });
-    });
-    if (ok === 'ok') break;
-    if (ok !== 'taken') { Net.room = null; $('hRoomStatus').textContent = '配對服務暫時連不上，請改用下方的連線碼。'; $('hOld').open = true; return; }
-  }
-  if (!Net.room || !Net.room.peer) { Net.room = null; $('hRoomStatus').textContent = '房間碼一直重複，請重新整理再試。'; return; }
-  const { code, peer } = Net.room;
-  $('hRoomCode').textContent = code;
-  $('hRoomStatus').textContent = '房間開好了，等朋友加入';
-  peer.on('connection', (conn) => {
-    const id = 'p' + (++Net.seq);
-    wireConn(id, conn, () => {
-      Net.peers.set(id, { conn, dc: connAdapter(conn) });
-      send(id, { t: 'welcome', id });
-      onOpen(id);
-    });
-  });
-  // 跟配對服務斷線（例如電腦睡眠）時自動重連，才能繼續收新朋友；已經連上的人不受影響
-  peer.on('disconnected', () => { setTimeout(() => { if (!peer.destroyed) peer.reconnect(); }, 2000); });
-}
-
-async function guestJoinRoom(raw) {
-  const code = cleanRoomCode(raw);
-  if (code.length !== 4) throw new Error('房間碼是 4 個字');
-  const Peer = await loadPeer().catch(() => { throw new Error('房間碼功能載入失敗，請改用下方的連線碼。'); });
-  if (Net.room && Net.room.peer) Net.room.peer.destroy();
-  return new Promise((resolve, reject) => {
-    const peer = new Peer();
-    Net.room = { code, peer };
-    let done = false;
-    const fail = (text) => { if (done) return; done = true; clearTimeout(timer); peer.destroy(); Net.room = null; reject(new Error(text)); };
-    const timer = setTimeout(() => fail('等太久了，可能是網路擋住了直連。可以換個網路，或改用下方「連線碼（舊方法）」。'), 20000);
-    peer.on('error', (e) => fail(peerErrorText(e)));
-    peer.on('open', () => {
-      const conn = peer.connect(ROOM_PREFIX + code, { reliable: true, serialization: 'raw' });
-      wireConn('host', conn, () => {
-        if (done) return;
-        done = true; clearTimeout(timer);
-        Net.peers.set('host', { conn, dc: connAdapter(conn) });
-        resolve();
-        // 等房主回 welcome（裡面有自己的玩家編號）才送 hello
-      });
-    });
-  });
-}
-
 function onOpen(id) {
   if (Net.role === 'guest') { send('host', { t: 'hello', name: ME.name, era: ME.era, look: ME.look }); $('jStatus').textContent = '已連線！等房主開始遊戲。'; }
   else $('hStatus').textContent = '有人連上了！';
@@ -1876,13 +2068,12 @@ function hostHandle(id, m) {
 }
 // 隊員收到的訊息
 function guestHandle(m) {
-  if (m.t === 'welcome') { ME.id = m.id; onOpen('host'); return; }
   if (m.t === 'lobby') { Net.players = m.players; renderPlayers(); }
   if (m.t === 'start') beginNetGame(m);
   if (m.t === 'state') applyState(m);
   if (m.t === 'toast') toast(m.text, m.ms);
   if (m.t === 'note') showNote(m.title, m.body);
-  if (m.t === 'pad') openPad(m.title, m.hint);
+  if (m.t === 'pad') openPad(m.title, m.hint, m.len || 4);
   if (m.t === 'padResult') padResult(m.ok, m.bad);
   if (m.t === 'finish') { if (m.win) saveClear(S.levelNo, S.diff, m.sec); showResult(m.win, m.text); }
   if (m.t === 'pos') { if (m.id !== ME.id) others[m.id] = m; }
@@ -1933,8 +2124,9 @@ function note(title, body) {
 }
 const pads = {};
 function pad(title, hint, code, onOk, bad) {
+  const len = typeof code === 'string' ? code.length : 4;
   pads[S.who] = { code, onOk, era: S.era, bad };
-  if (isLocal()) openPad(title, hint); else send(S.who, { t: 'pad', title, hint });
+  if (isLocal()) openPad(title, hint, len); else send(S.who, { t: 'pad', title, hint, len });
 }
 function padTry(who, val) {
   const p = pads[who];
@@ -1946,6 +2138,9 @@ function padTry(who, val) {
 }
 function finish(win, text) {
   if (S.done) return;
+  const L = S.level;
+  if (win && L && L.gate && !L.gate(S.f)) { msg(typeof L.gateMsg === 'function' ? L.gateMsg(S.f) : L.gateMsg, 5000); return; }
+  if (win && L && L.story && L.story.outro) text = `${text}\n\n${L.story.outro}`;
   S.done = true;
   const sec = Math.round((performance.now() - S.start) / 1000);
   const used = D().hints - S.hintsLeft;
@@ -1971,8 +2166,13 @@ function closeModal(id) { $(id).classList.remove('show'); }
 function only(id) { document.querySelectorAll('.modal').forEach((m) => m.classList.remove('show')); if (id) openModal(id); }
 $('noteClose').onclick = () => closeModal('note');
 
-let padVal = '';
-function openPad(title, hint) { padVal = ''; $('padTitle').textContent = title; $('padHint').textContent = hint; drawPad(); openModal('pad'); }
+let padVal = '', padLen = 4;
+function openPad(title, hint, len = 4) {
+  padVal = ''; padLen = Math.max(1, Math.min(6, len));
+  $('padTitle').textContent = title; $('padHint').textContent = hint;
+  document.querySelector('#pad .digits').innerHTML = '<div></div>'.repeat(padLen);
+  drawPad(); openModal('pad');
+}
 function drawPad() { [...document.querySelectorAll('#pad .digits div')].forEach((d, i) => (d.textContent = padVal[i] || '')); }
 function padResult(ok, bad) {
   if (ok) closeModal('pad');
@@ -1984,9 +2184,9 @@ const keysBox = document.querySelector('#pad .keys');
   b.onclick = () => {
     if (k === '清除') padVal = '';
     else if (k === '←') padVal = padVal.slice(0, -1);
-    else if (padVal.length < 4) padVal += k;
+    else if (padVal.length < padLen) padVal += k;
     drawPad();
-    if (padVal.length === 4) {
+    if (padVal.length === padLen) {
       if (Net.role === 'guest') send('host', { t: 'padTry', val: padVal });
       else padTry(S.mode === 'solo' ? S.era : ME.id, padVal);
     }
@@ -2004,6 +2204,7 @@ function updateHud() {
   $('cracks').textContent = `${D().name}・${crackName()} ${S.cracks} / ${D().cracks}`;
   const h = S.held[S.who];
   $('heldName').textContent = h ? ITEM_NAMES[h] : '（空）';
+  $('memo').textContent = S.level && S.level.memento ? `🎁 ${S.level.memento}：${S.f && S.f.memento ? '已找到' : '還沒找到'}` : '';
   const g = S.level ? S.level.goal(e) : '';
   $('goalText').innerHTML = D().brief ? g.split('<br>')[0] + '<br><span style="opacity:.6">（困難模式：線索要自己找）</span>' : g;
   $('keys').innerHTML = S.mode === 'solo'
@@ -2266,7 +2467,6 @@ $('btnHost').onclick = () => {
   ME.color = ME.look.body;
   if (!Net.players.find((p) => p.id === 'p0')) Net.players.unshift({ id: 'p0', name: $('hName').value || '房主', era: ME.era, color: ME.color, look: ME.look });
   renderLevelLists(); renderPlayers(); only('host');
-  hostOpenRoom();
 };
 $('btnJoin').onclick = () => {
   if (Net.role === 'host') return toast('你已經是房主了，重新整理頁面才能加入別人。');
@@ -2313,31 +2513,6 @@ $('jMake').onclick = async () => {
   catch (e) { $('jMakeStatus').textContent = '失敗：' + e.message; $('jMake').disabled = false; }
 };
 $('jCopy').onclick = () => copyText($('jAnswer'));
-async function copyString(s) {
-  try { await navigator.clipboard.writeText(s); toast('已複製'); }
-  catch (e) { const t = document.createElement('textarea'); t.value = s; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove(); toast('已複製'); }
-}
-$('hCopyLink').onclick = () => { if (!Net.room || !Net.room.code) return toast('房間碼還沒準備好'); copyString(roomLink(Net.room.code)); };
-$('hCopyCode').onclick = () => { if (!Net.room || !Net.room.code) return toast('房間碼還沒準備好'); copyString(Net.room.code); };
-$('jRoom').oninput = () => { const v = cleanRoomCode($('jRoom').value); if (v !== $('jRoom').value) $('jRoom').value = v; };
-$('jRoom').onkeydown = (e) => { if (e.key === 'Enter') $('jGo').click(); };
-$('jGo').onclick = async () => {
-  if (Net.peers.has('host')) return toast('已經連上了，等房主開始遊戲。');
-  ME.name = $('jName').value || '玩家';
-  $('jStatus').textContent = '連線中…'; $('jGo').disabled = true;
-  try { await guestJoinRoom($('jRoom').value); $('jStatus').textContent = '已連上房間，等房主回應…'; }
-  catch (e) { $('jStatus').textContent = e.message; $('jGo').disabled = false; }
-};
-// 從邀請連結（…#room=ABCD）打開：直接進加入畫面並填好房間碼
-function openFromLink() {
-  const m = /room=([0-9A-Za-z]{4})/.exec(location.hash);
-  if (!m || Net.role) return;
-  $('btnJoin').onclick();
-  $('jRoom').value = cleanRoomCode(m[1]);
-  $('jStatus').textContent = '房間碼已填好。確認名字和年代後按「加入」。';
-  history.replaceState(null, '', location.pathname + location.search);
-}
-openFromLink();
 $('hStart').onclick = () => {
   const eras = new Set(Net.players.map((p) => p.era));
   if (Net.players.length < 2) return toast('至少要兩個人。只有自己的話請用單機試玩。');
@@ -2360,7 +2535,7 @@ function beginNetGame(m) {
   if (me) { ME.era = me.era; ME.color = me.color; }
   S.era = ME.era; S.who = ME.id; S.done = false; S.start = performance.now();
   Object.assign(pos, { x: ME.era === '1990' ? -0.4 : 0.4, z: 2.3, yaw: 0, pitch: 0 });
-  only(null); rebuild();
+  only(null); rebuild(); showStory();
   toast(`遊戲開始！你在${sideOf(ME.era)[0]}。用 Discord 語音跟另一邊的隊友說你看到什麼。`, 4500);
 }
 function startSolo(n) {
@@ -2369,9 +2544,16 @@ function startSolo(n) {
   for (const k of Object.keys(pads)) delete pads[k];
   for (const k of ['1990', '2030']) Object.assign(soloPos[k], { x: 0, z: 2.3, yaw: 0, pitch: 0 });
   S.level.init();
-  only(null); rebuild();
+  only(null); rebuild(); showStory();
   toast(`按 Tab（手機按「換年代」）隨時切換${sideOf('1990')[0]}／${sideOf('2030')[0]}。先看看兩邊有什麼不一樣！`, 4000);
 }
+function showStory() {
+  if (!S.level || !S.level.story) return;
+  $('storyTitle').textContent = S.level.name;
+  $('storyBody').textContent = S.level.story.intro + (S.level.memento ? `\n\n🎁 這一關要找回的回憶：「${S.level.memento}」——找到它，出口才會打開。` : '');
+  openModal('story');
+}
+$('storyGo').onclick = () => closeModal('story');
 function showResult(win, text) {
   S.done = true;
   $('resultTitle').textContent = win ? '逃出成功！' : '這次失敗了';
@@ -2400,10 +2582,7 @@ function switchEra() {
   S.era = S.era === '1990' ? '2030' : '1990'; S.who = S.era; ME.id = S.era;
   Object.assign(pos, soloPos[S.era]);
   rebuild();
-  const carried = !(S.level && S.level.sides) && S.era === '2030' && S.held['1990'];
-  toast(S.level && S.level.sides ? `切換到${sideOf(S.era)[0]}。` : S.era === '1990' ? '回到 1990。'
-    : carried ? `來到 2030。1990 的你手上還拿著${ITEM_NAMES[carried]}——拿在手上的東西不會自己留到未來。`
-    : '來到 2030——看看 1990 做的事改變了什麼。', carried ? 4200 : 2200);
+  toast(S.level && S.level.sides ? `切換到${sideOf(S.era)[0]}。` : S.era === '1990' ? '回到 1990。' : '來到 2030——看看 1990 做的事改變了什麼。', 2200);
 }
 
 // =====================================================================
@@ -2573,7 +2752,7 @@ function loop(now) {
 // 選單背景：1990 的客廳
 LEVEL1.init(); S.level = LEVEL1; rebuild(); S.level = null; updateHud(); camera.position.set(0, 1.5, 2.3);
 requestAnimationFrame(loop);
-window.__game = { S, ME, Net, pos, avatarRoot, updateAvatars, makeAvatar, THREE, soloPos, startSolo, switchEra, askHint, LEVELS, PROG, renderLevelLists, openLook, interact: () => interact(), get focus() { return focus; }, hits: () => hits, doAct, others };
+window.__game = { S, ME, Net, pos, avatarRoot, updateAvatars, ELEMENTS, netAct: (id) => (Net.role === 'guest' ? send('host', { t: 'act', id }) : doAct(S.who, S.era, id)), makeAvatar, THREE, soloPos, startSolo, switchEra, askHint, LEVELS, PROG, renderLevelLists, openLook, interact: () => interact(), get focus() { return focus; }, hits: () => hits, doAct, others };
 </script>
 </body>
 </html>
